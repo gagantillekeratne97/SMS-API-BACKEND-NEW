@@ -1,0 +1,131 @@
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using ServvistaWebAppAPI.Classes;
+
+namespace ServvistaWebAppAPI.Controllers
+{
+    [Route("api/[controller]")]
+    [ApiController]
+    public class ServiceController : ControllerBase
+    { 
+        private readonly IServiceSchedule _serviceSchedule; 
+        public ServiceController(IServiceSchedule serviceSchedule, IConfiguration config)
+        {        
+            _serviceSchedule = serviceSchedule;
+        }        
+        
+        //PUT api/service/updateservicevisit?techCode={techCode}&visitno={visitno}&machinerefno={machinerefno}&jobStatus={jobstatus}
+        [Authorize]
+        [HttpPost("updateservicevisit")]
+        public IActionResult UpdateServiceVisit(string techCode, int visitNo, string machineRefNo, string jobStatus)
+        {
+            try
+            {
+                _serviceSchedule.UpdateServiceSchedule(techCode, visitNo, machineRefNo, jobStatus);
+                return Ok("Service Visit Updated Successfully.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message); 
+            }
+        }
+
+        //GET api/service/getmonthlyservicevisits
+        [Authorize]
+        [HttpGet("getmonthlyservicevisits")]
+        public async Task<IActionResult> GetMonthlyServiceVisits(string techCode)
+        {
+            try
+            {                
+                var result = _serviceSchedule.GetMonthlyVisits(techCode).Result;
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        //GET api/service/getmonthlyservicevisitscount?techCode={techCode}
+        [Authorize]
+        [HttpGet("getmonthlyservicevisitscount")]
+        public async Task<IActionResult> GetMonthlyServiceVisitsCount(string techCode)
+        {
+            try
+            {
+                var serviceVisitsForMonth = _serviceSchedule.GetMonthlyVisits(techCode).Result; 
+                var result = serviceVisitsForMonth.Count;
+                return Ok(result); 
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        //GET api/service/getpreviousvisits
+        [Authorize]
+        [HttpGet("getpreviousvisits")]
+        public async Task<IActionResult> GetPreviousVisits(string techCode)
+        {
+            try
+            {
+                var result = _serviceSchedule.GetPreviousServiceVisits(techCode).Result; 
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        //GET api/service/updatepreviousvisits
+        [Authorize]
+        [HttpPost("updatepreviousvisits")]
+        public async Task<IActionResult> UpdatePreviousScheduleVisits(string techCode, int transactionID, int visitNo, string machineRefNo, DateTime visitDate, int meterReading)
+        {
+            try
+            {
+                _serviceSchedule.UpdatePreviousScheduleVisits(techCode, visitDate, visitNo, machineRefNo, meterReading);
+                return Ok("Previous schedule updated."); 
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message); 
+            }
+        }        
+
+        //GET api/service/getremainingdates?techCode={techCode}&machinerefno={machinerefno}
+        [Authorize]
+        [HttpGet("getremainingdates")]
+        public async Task<IActionResult> GetRemainingDates(string techCode, string machineRefNo)
+        {
+            try
+            {
+                var result = _serviceSchedule.GetRemainingDays(techCode, machineRefNo).Result;
+                return Ok(result); 
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }        
+
+        //GET api/service/gettodayservicevisits?techCode={techCode}
+        [Authorize]
+        [HttpGet("gettodayservicevisits")]
+        public async Task<IActionResult> GetTodayServiceVisits(string techCode)
+        {
+            try
+            {
+                var result = _serviceSchedule.GetTodayServiceVisits(techCode).Result;
+                return Ok(result); 
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+    }
+}
