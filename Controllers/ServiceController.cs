@@ -15,7 +15,7 @@ namespace ServvistaWebAppAPI.Controllers
             _serviceSchedule = serviceSchedule;
         }        
 
-        //This is a testing comment for git hub usage. 
+        //This is a testing comment for git hub usage. another commit 
         
         //PUT api/service/updateservicevisit?techCode={techCode}&visitno={visitno}&machinerefno={machinerefno}&jobStatus={jobstatus}
         [Authorize]
