@@ -18,22 +18,34 @@ namespace ServvistaWebAppAPI.Services
         public async Task<TechnicianPerformanceModel> GetPerformanceAsync(string techCode)
         {
             const string sql = @"
-            SELECT
-                COUNT(*) AS TotalJobs,
-                SUM(
-                    CASE 
-                        WHEN UPPER(LTRIM(RTRIM(JOB_STATUS))) = 'COMPLETE'
-                        THEN 1
-                        ELSE 0
-                    END
-                ) AS CompletedJobs
-            FROM TBL_DAILY_JOBS
-            WHERE TECH_CODE = @TechCode;
-        ";
+                            SELECT
+                    COUNT(*) AS TotalJobs,
+
+                    SUM(
+                        CASE 
+                            WHEN UPPER(LTRIM(RTRIM(JOB_STATUS))) = 'COMPLETE'
+                            THEN 1
+                            ELSE 0
+                        END
+                    ) AS CompletedJobs,
+
+                    SUM(
+                        CASE 
+                            WHEN UPPER(LTRIM(RTRIM(JOB_STATUS))) = 'COMPLETE'
+                             AND COMPLETED_DATE >= DATEADD(WEEK, DATEDIFF(WEEK, 0, GETDATE()), 0)
+                             AND COMPLETED_DATE <  DATEADD(WEEK, DATEDIFF(WEEK, 0, GETDATE()) + 1, 0)
+                            THEN 1
+                            ELSE 0
+                        END
+                    ) AS weeklyCompletedJobs
+
+                FROM TBL_DAILY_JOBS
+                WHERE TECH_CODE = @techcode;
+                ";
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                var result = await connection.QuerySingleAsync<(int TotalJobs, int CompletedJobs)>(
+                var result = await connection.QuerySingleAsync<(int TotalJobs, int CompletedJobs, int weeklyCompletedJobs)>(
                 sql,
                 new { TechCode = techCode }
                 );
@@ -46,7 +58,8 @@ namespace ServvistaWebAppAPI.Services
                 {
                     TotalJobs = result.TotalJobs,
                     CompletedJobs = result.CompletedJobs,
-                    PerformancePercentage = percentage
+                    PerformancePercentage = percentage,
+                    weeklyCompletedJobs = result.weeklyCompletedJobs    
                 };
             }            
         }
