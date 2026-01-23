@@ -19,7 +19,7 @@
         public string MACHINE_MODEL_ID { get; set; }
         public string MACHINE_MODEL_NAME { get; set; }
         public string CUS_STATUS { get; set; }
-        public string note { get; set; }
-        public string jobStatus { get; set; }   
+        public string NOTE { get; set; }
+        public string JOB_STATUS { get; set; }   
     }
 }

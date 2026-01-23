@@ -197,21 +197,22 @@ namespace ServvistaWebAppAPI.Services
         }
 
         //Update Service Schedule Visit 
-        public async Task UpdateServiceSchedule(string techCode, int visitNo, string machineRefNo, string jobStatus)
+        public async Task UpdateServiceSchedule(string techCode, int visitNo, string machineRefNo, string jobStatus, int meterReadingValue)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
                 string updateQuery = $@"
                 UPDATE TBL_SERVICE_SCEDULE_UPDATE 
-                SET SV{visitNo} = @visitdate, SV{visitNo}_STATUS = @jobstatus
+                SET SV{visitNo} = @visitdate, SV{visitNo}_STATUS = @jobstatus, SV{visitNo}_MR = @meterreading
                 WHERE TECH_CODE = @techcode AND IS_ACTIVE = '1' AND MACHINE_REF = @machinerefno";
                 DateTime visitDate = GetSriLankanTime(); 
                 await connection.ExecuteAsync(updateQuery, new { 
                     techcode = techCode, 
                     machinerefno = machineRefNo,
                     visitdate = visitDate,
-                    jobstatus = jobStatus
+                    jobstatus = jobStatus, 
+                    metereading = meterReadingValue
                 });
             }
         }        

@@ -112,25 +112,9 @@ namespace ServvistaWebAppAPI.Services
                 string note = model.Note; 
                 string jobStatus = ""; 
 
-                connection.Open();
-                switch (model.jobStatus)
-                {
-                    case "Pending":
-                        jobStatus = "TECH ALLOCATED";
-                        break;
-                    case "Started":
-                        jobStatus = "TECH ALLOCATED"; 
-                        break;
-                    case "Completed":
-                        jobStatus = "COMPLETE";
-                        break;
-                    case "Cancelled":
-                        jobStatus = "CANCELLED";
-                        break;
-                    default:
-                        jobStatus = model.jobStatus;
-                        break;
-                }
+                connection.Open();         
+
+                jobStatus = model.jobStatus;
 
                 string checkJobIDExists = @"
                                         SELECT 
@@ -157,6 +141,13 @@ namespace ServvistaWebAppAPI.Services
                                               WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
                         DateTime completeDate = GetSriLankanTime();
                         await connection.ExecuteAsync(updateJobQuery, new { jobid = jobId, jobstatus = jobStatus, techcode = techCode, cancelledate = completeDate });
+                    }
+                    else
+                    {
+                        string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, CR_BY = @techcode, CR_DATE = @completedate
+                                              WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
+                        DateTime completeDate = GetSriLankanTime();
+                        await connection.ExecuteAsync(updateJobQuery, new { jobid = jobId, jobstatus = jobStatus, techcode = techCode, completedate = completeDate });
                     }
                 }
             }
