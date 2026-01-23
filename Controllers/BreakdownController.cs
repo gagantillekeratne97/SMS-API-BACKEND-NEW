@@ -81,6 +81,22 @@ namespace ServvistaWebAppAPI.Controllers
             }
         }
 
+        //api/breakdown/totalbreakdownjobs?techCode={techcode}
+        [Authorize]
+        [HttpGet("totalbreakdownjobs")]
+        public async Task<IActionResult> GetTotalBreakdownJobs(string techCode)
+        {
+            try
+            {
+                var result = await _breakdownServices.GetTotalBreakdowns(techCode);
+                return Ok(result); 
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         //api/breakdown/pending
         [Authorize]
         [HttpGet("pending")]

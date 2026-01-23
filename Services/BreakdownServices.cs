@@ -84,8 +84,23 @@ namespace ServvistaWebAppAPI.Services
             }
 
             return breakdownModel; 
-        }        
-        
+        }
+
+        //Get all total breakdown jobs
+        public async Task<List<BreakdownModel>> GetTotalBreakdowns(string techCode)
+        {
+            List<BreakdownModel> breakdownModels = new List<BreakdownModel>();
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                connection.Open(); 
+                string query = @"SELECT * FROM TBL_DAILY_JOBS WHERE TECH_CODE = @techcode";
+                var result = connection.Query<BreakdownModel>(query, new { techcode = techCode }).ToList();
+                breakdownModels = result;
+            }
+
+            return breakdownModels; 
+        }
+
         //Update Breakdown Jobs
         public async Task UpdateJobStatus(UpdateJobModel model)
         {
