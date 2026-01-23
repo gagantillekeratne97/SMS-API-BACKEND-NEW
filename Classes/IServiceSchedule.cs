@@ -8,7 +8,7 @@ namespace ServvistaWebAppAPI.Classes
         Task<int> GetRemainingDays(string techCode, string machineRefNo);
         Task<List<ServiceVisitMonthlyInfo>> GetMonthlyVisits(string techCode);
         Task UpdateServiceSchedule(string techCode, int visitNo, string machineRefno, string jobStatus);
-        Task<List<PreviousServiceVisitModel>> GetPreviousServiceVisits(string techCode);        
-        Task UpdatePreviousScheduleVisits(string techCode, DateTime visitDate, int visitNo, string machineRefNo, int meterReadingValue);        
+        Task<List<PreviousServiceVisitModel>> GetPreviousServiceVisits(string techCode, string machineRefNo);                
+        Task<List<ServiceVisitMonthlyInfo>> GetTotalServiceVisits(string techCode);
     }
 }

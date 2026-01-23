@@ -66,15 +66,15 @@ namespace ServvistaWebAppAPI.Controllers
             }
         }
 
-        //GET api/service/getpreviousvisits
+        //GET api/service/totalservicevisits?techCode={techCode}
         [Authorize]
-        [HttpGet("getpreviousvisits")]
-        public async Task<IActionResult> GetPreviousVisits(string techCode)
+        [HttpGet("totalservicevisits")]
+        public async Task<IActionResult> GetTotalServiceVisits(string techCode)
         {
             try
             {
-                var result = _serviceSchedule.GetPreviousServiceVisits(techCode).Result; 
-                return Ok(result);
+                var result = _serviceSchedule.GetTotalServiceVisits(techCode).Result; 
+                return Ok(result); 
             }
             catch (Exception ex)
             {
@@ -82,19 +82,19 @@ namespace ServvistaWebAppAPI.Controllers
             }
         }
 
-        //GET api/service/updatepreviousvisits
+        //GET api/service/getpreviousvisits?techCode={techcode}&machinerefno={machinerefno} 
         [Authorize]
-        [HttpPost("updatepreviousvisits")]
-        public async Task<IActionResult> UpdatePreviousScheduleVisits(string techCode, int transactionID, int visitNo, string machineRefNo, DateTime visitDate, int meterReading)
+        [HttpGet("previousservicelists")]
+        public async Task<IActionResult> GetPreviousVisits(string techCode, string machineRefNo)
         {
             try
             {
-                _serviceSchedule.UpdatePreviousScheduleVisits(techCode, visitDate, visitNo, machineRefNo, meterReading);
-                return Ok("Previous schedule updated."); 
+                var result = _serviceSchedule.GetPreviousServiceVisits(techCode, machineRefNo).Result; 
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message); 
+                return BadRequest(ex.Message);
             }
         }        
 

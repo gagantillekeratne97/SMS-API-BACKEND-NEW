@@ -5,6 +5,8 @@ using ServvistaWebAppAPI.Classes;
 using ServvistaWebAppAPI.Models;
 using System.ComponentModel;
 using System.Data.SqlClient;
+using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace ServvistaWebAppAPI.Services
@@ -120,50 +122,78 @@ namespace ServvistaWebAppAPI.Services
                 remainingDays = (dueDate - today).Days;                
             }
             return remainingDays; 
-        }           
+        }
 
-        //Get Previous Service schedule         
-        public async Task<List<PreviousServiceVisitModel>> GetPreviousServiceVisits(string techCode)
+        //Get Total Service visits of Technician 
+        public async Task<List<ServiceVisitMonthlyInfo>> GetTotalServiceVisits(string techCode)
         {
-            List<PreviousServiceVisitModel> previousVisits = new List<PreviousServiceVisitModel>();
+            List<ServiceVisitMonthlyInfo> serviceSchedules = new List<ServiceVisitMonthlyInfo>(); 
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
                 string query = @"
-                  SELECT T_ID AS TransactionID, TECH_CODE AS techCode, SERIAL_NO AS serialNo, MACHINE_REF AS machineRefNo, 
-                  SV1 AS sv1, SV2 AS sv2, SV3 AS sv3, SV4 AS sv4, SV5 AS sv5, SV6 AS sv6, IS_ACTIVE AS isActive FROM TBL_SERVICE_SCEDULE_UPDATE WHERE (
-                  SV1 IS NULL
-                  OR SV2 IS NULL 
-                  OR SV3 IS NULL 
-                  OR SV4 IS NULL 
-                  OR SV5 IS NULL 
-                  OR SV6 IS NULL
-                  ) AND TECH_CODE = @techcode AND IS_ACTIVE = '0'";
-                var result = connection.Query<PreviousServiceVisitModel>(query, new { 
-                    techcode = techCode
-                });
-                previousVisits = result.ToList(); 
+                                SELECT
+                                    s.T_ID           AS rowId,
+                                    s.CUS_ID         AS customerID,
+                                    c.CUS_NAME       AS customerName,    
+                                    c.CONTACT_PERSON AS contactPerson,
+                                    c.TEL_NO         AS customerTelephone,
+                                    s.M_LOC1         AS machineLocation01, 
+                                    s.M_LOC2         AS machineLocation02, 
+                                    s.M_LOC3         AS machineLocation03, 
+                                    s.MACHINE_REF    AS machineRefNo,
+                                    v.VisitNo        AS expectedVisitNo,
+                                    CONVERT(char(10), v.ExpectedDate, 120) AS expectedVisitDate,
+                                    CASE 
+                                        WHEN v.ActualVisit IS NOT NULL THEN 'COMPLETED'
+                                        ELSE 'PENDING'
+                                    END AS VisitStatus
+                                FROM dbo.TBL_SERVICE_SCEDULE_UPDATE s
+                                INNER JOIN dbo.MTBL_CUSTOMER_MASTER c
+                                    ON c.CUS_CODE = s.CUS_ID
+                                CROSS APPLY
+                                (
+                                    VALUES
+                                        ('EXPT_SV1', s.EXPT_SV1, s.SV1),
+                                        ('EXPT_SV2', s.EXPT_SV2, s.SV2),
+                                        ('EXPT_SV3', s.EXPT_SV3, s.SV3),
+                                        ('EXPT_SV4', s.EXPT_SV4, s.SV4),
+                                        ('EXPT_SV5', s.EXPT_SV5, s.SV5),
+                                        ('EXPT_SV6', s.EXPT_SV6, s.SV6)
+                                ) v (VisitNo, ExpectedDate, ActualVisit)
+                                WHERE s.TECH_CODE = '0000'
+                                  AND v.ExpectedDate IS NOT NULL
+                                ORDER BY v.ExpectedDate, v.VisitNo;
+                                ";                                
+
+                var result = connection.Query<ServiceVisitMonthlyInfo>(query, new { techcode = techCode }).ToList();
+                serviceSchedules = result;
             }
 
-            return previousVisits; 
+            return serviceSchedules;
         }
 
-        //Updation of Service Previous Visits
-        public async Task UpdatePreviousScheduleVisits(string techCode, DateTime visitDate, int visitNo, string machineRefNo, int meterReadingValue)
+        //Get the previous visits for a machine ref 
+        public async Task<List<PreviousServiceVisitModel>> GetPreviousServiceVisits(string techCode, string machineRefNo)
         {
+            List<PreviousServiceVisitModel> previousServiceVisits = new List<PreviousServiceVisitModel>();
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
-                string query = $@"
-                UPDATE TBL_SERVICE_SCEDULE_UPDATE SET SV{visitNo} = @visitDate, SV{visitNo}_STATUS = 'UPDATED', SV{visitNo}_MR = @meterreading
-                WHERE TECH_CODE = @techcode AND MACHINE_REF = @machineref AND IS_ACTIVE = '0' AND SV{visitNo} IS NULL";
-                connection.Execute(query, new { 
+                string query = @"
+                SELECT EXPT_SV1 AS exptsv1, EXPT_SV2 AS exptsv2, EXPT_SV3 AS exptsv3, EXPT_SV4 AS exptsv4, EXPT_SV5 AS exptsv5, EXPT_SV6 AS exptsv6,
+                SV1, SV2, SV3, SV4, SV5, SV6 
+                FROM TBL_SERVICE_SCEDULE_UPDATE
+                WHERE TECH_CODE = @techcode AND MACHINE_REF = @machinerefno AND IS_ACTIVE = '0'";
+                var result = connection.Query<PreviousServiceVisitModel>(query, new { 
                     techcode = techCode, 
-                    machineref = machineRefNo, 
-                    visitDate = visitDate,
-                    meterreading = meterReadingValue
-                });                
+                    machinerefno = machineRefNo 
+                }).ToList();
+
+                previousServiceVisits = result;
             }
+
+            return previousServiceVisits;
         }
 
         //Update Service Schedule Visit 
@@ -184,7 +214,7 @@ namespace ServvistaWebAppAPI.Services
                     jobstatus = jobStatus
                 });
             }
-        }
+        }        
 
         //Get Monthly Machine Information 
         public async Task<List<ServiceVisitMonthlyInfo>> GetMonthlyVisits(string techCode)

@@ -7,6 +7,7 @@ namespace ServvistaWebAppAPI.Classes
         Task<List<BreakdownModel>> GetCompleteLists(string techCode);
         Task<List<BreakdownModel>> GetPendingLists(string techCode);
         Task<List<BreakdownModel>> GetTodayBreakdownList(string techCode);
-        Task UpdateJobStatus(UpdateJobModel model);        
+        Task UpdateJobStatus(UpdateJobModel model);
+        Task<List<BreakdownModel>> GetTotalBreakdowns(string techCode);
     }
 }

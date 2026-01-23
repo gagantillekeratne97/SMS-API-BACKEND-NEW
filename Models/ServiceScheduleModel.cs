@@ -1,7 +1,8 @@
 ﻿namespace ServvistaWebAppAPI.Models
 {
-    public class PreviousServiceVisitModel
+    public class ServiceScheduleModel
     {
+        public string machineRefNo { get; set; }
         public DateTime? exptsv1 { get; set; }
         public DateTime? exptsv2 { get; set; }
         public DateTime? exptsv3 { get; set; }
