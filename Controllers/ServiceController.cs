@@ -13,18 +13,16 @@ namespace ServvistaWebAppAPI.Controllers
         public ServiceController(IServiceSchedule serviceSchedule, IConfiguration config)
         {        
             _serviceSchedule = serviceSchedule;
-        }        
-
-        //This is a testing comment for git hub usage. 
+        }                
         
         //PUT api/service/updateservicevisit?techCode={techCode}&visitno={visitno}&machinerefno={machinerefno}&jobStatus={jobstatus}
         [Authorize]
         [HttpPost("updateservicevisit")]
-        public IActionResult UpdateServiceVisit(string techCode, int visitNo, string machineRefNo, string jobStatus)
+        public IActionResult UpdateServiceVisit(string techCode, int visitNo, string machineRefNo, string jobStatus, int meterReadingValue)
         {
             try
             {
-                _serviceSchedule.UpdateServiceSchedule(techCode, visitNo, machineRefNo, jobStatus);
+                _serviceSchedule.UpdateServiceSchedule(techCode, visitNo, machineRefNo, jobStatus, meterReadingValue);
                 return Ok("Service Visit Updated Successfully.");
             }
             catch (Exception ex)
