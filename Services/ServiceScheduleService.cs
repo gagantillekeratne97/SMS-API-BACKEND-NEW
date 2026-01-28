@@ -6,6 +6,7 @@ using ServvistaWebAppAPI.Models;
 using System.ComponentModel;
 using System.Data.SqlClient;
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
@@ -196,26 +197,203 @@ namespace ServvistaWebAppAPI.Services
             return previousServiceVisits;
         }
 
+        //Available visits count 
+        private async Task<int> AvailableLatestVisit(string serialNo, int visitsPerYear, SqlConnection connection)
+        {
+            string query = @"
+            SELECT TOP 1 SV1, SV2, SV3, SV4, SV5, SV6
+            FROM TBL_SERVICE_SCEDULE_UPDATE
+            WHERE SERIAL_NO = @SerialNo
+              AND IS_ACTIVE = 1
+            ORDER BY T_ID DESC";
+
+            var result = await connection.QueryFirstOrDefaultAsync<ServiceVisit>(
+                query, new { SerialNo = serialNo });
+
+            if (result == null)
+                return 1;
+
+            DateTime?[] svArray =
+            {
+            result.SV1, result.SV2, result.SV3,
+            result.SV4, result.SV5, result.SV6
+        };
+
+            int latestCompleted = 0;
+
+            for (int i = 0; i < visitsPerYear; i++)
+            {
+                if (svArray[i].HasValue)
+                {
+                    latestCompleted = i + 1;
+                }
+            }
+
+            int nextVisit = latestCompleted + 1;
+
+            return nextVisit <= visitsPerYear ? nextVisit : 0;
+        }
+
+        //Check for latest visits 
+        private async Task<int> CheckForLatestVisits(string serialNo, int visitsPerYear, SqlConnection connection)
+        {
+            int latestVisitNo = 0;
+            string query = @"
+                SELECT SV1, SV2, SV3, SV4, SV5, SV6
+                FROM TBL_SERVICE_SCEDULE_UPDATE 
+                WHERE SERIAL_NO = @serialno AND IS_ACTIVE = 1
+                ORDER BY T_ID DESC";
+            var result = connection.QueryFirstOrDefaultAsync<ServiceVisit>(
+            query, new { SerialNo = serialNo });
+
+            if (result.Result == null)
+                return 0;
+
+            DateTime?[] svArray =
+            {
+                    result.Result.SV1, result.Result.SV2, result.Result.SV3,
+                    result.Result.SV4, result.Result.SV5, result.Result.SV6
+            };
+
+            for (int i = 0; i < visitsPerYear; i++)
+            {
+                if (svArray[i].HasValue)
+                {
+                    latestVisitNo = i + 1; // SV1 → 1, SV2 → 2, etc.
+                }
+            }
+
+            return latestVisitNo;
+        }
+
         //Update Service Schedule Visit 
-        public async Task UpdateServiceSchedule(string techCode, int visitNo, string machineRefNo, string jobStatus, int meterReadingValue)
+        public async Task<ScheduleResponse> UpdateServiceSchedule(string techCode, 
+                                                int visitNo, 
+                                                string machineRefNo, 
+                                                string jobStatus, 
+                                                int meterReadingValue, 
+                                                int hologramNumber)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
+                //Declaration of variables 
+                string serialNo = "";
+                string customerCode = "";
+                string customerName = "";
+                string customerAdd1 = "";
+                string customerAdd2 = "";
+                string customerAdd3 = "";
+                string machineId = "";
+                string machineModel = "";
+                string techName = "";
+                int serviceVisitsCount = 0;
+
                 connection.Open();
-                string updateQuery = $@"
-                UPDATE TBL_SERVICE_SCEDULE_UPDATE 
-                SET SV{visitNo} = @visitdate, SV{visitNo}_STATUS = @jobstatus, SV{visitNo}_MR = @meterreading
-                WHERE TECH_CODE = @techcode AND IS_ACTIVE = '1' AND MACHINE_REF = @machinerefno";
-                DateTime visitDate = GetSriLankanTime(); 
-                await connection.ExecuteAsync(updateQuery, new { 
-                    techcode = techCode, 
-                    machinerefno = machineRefNo,
-                    visitdate = visitDate,
-                    jobstatus = jobStatus, 
-                    metereading = meterReadingValue
-                });
+                string selectMachineQuery = @"
+                SELECT
+                SERIAL_NO, 
+                CUS_CODE, 
+                CUS_NAME, 
+                M_LOC1, 
+                M_LOC2, 
+                M_LOC3, 
+                MACHINE_CODE, 
+                MACHINE_DESC, 
+                T_OFFICER_CODE,
+                T_OFFICER_NAME,
+                VISITS_PER_YEAR
+                FROM TBL_MACHINE_TRANSACTION WHERE COM_ID = '001' AND MACHINE_REF_CODE = @qnumber";
+                var machineInfo = connection.QuerySingleOrDefault<dynamic>(selectMachineQuery, new { qnumber = machineRefNo });
+                if (machineInfo != null)
+                {
+                    serialNo = machineInfo.SERIAL_NO;
+                    customerCode = machineInfo.CUS_CODE;
+                    customerName = machineInfo.CUS_NAME;
+                    customerAdd1 = machineInfo.CUS_ADD1;
+                    customerAdd2 = machineInfo.CUS_ADD2;
+                    customerAdd3 = machineInfo.CUS_ADD3;
+                    machineId = machineInfo.MACHINE_CODE;
+                    machineModel = machineInfo.MACHINE_DESC;
+                    techCode = machineInfo.T_OFFICER_CODE;
+                    techName = machineInfo.T_OFFICER_NAME;
+                    serviceVisitsCount = Convert.ToInt32(machineInfo.VISITS_PER_YEAR);
+                }
+
+                int latestVisits = await CheckForLatestVisits(serialNo, serviceVisitsCount, connection);
+                int availableVisit = await AvailableLatestVisit(serialNo, serviceVisitsCount, connection);
+
+                if (latestVisits >= visitNo)
+                {                                        
+                    return (new ScheduleResponse
+                    {
+                        statusCode = StatusCodes.Status400BadRequest.ToString(),
+                        errorMessage = $"Your entered visit no is expired. Available Visit No {availableVisit}", 
+                        isUpdate = false
+                    });
+                }
+                else
+                {
+                    var result = CheckForExistingVisits(serialNo, $"SV{visitNo}", connection);
+                    if (result != null)
+                    {
+                        if (serviceVisitsCount < visitNo)
+                        {
+                            return (new ScheduleResponse
+                            {
+                                statusCode = StatusCodes.Status400BadRequest.ToString(),
+                                errorMessage = $"Visits entering is invalid. Visits Per Year for this machine is {serviceVisitsCount}",
+                                isUpdate = false
+                            });
+                        }
+                        else
+                        {
+                            string updateQuery = $@"
+                                UPDATE TBL_SERVICE_SCEDULE_UPDATE 
+                                SET SV{visitNo} = @visitdate, SV{visitNo}_STATUS = @jobstatus, SV{visitNo}_MR = @meterreading
+                                WHERE TECH_CODE = @techcode AND IS_ACTIVE = '1' AND MACHINE_REF = @machinerefno";
+
+                            connection.Execute(updateQuery, new
+                            {
+                                techcode = techCode,
+                                machinerefno = machineRefNo,
+                                visitdate = GetSriLankanTime(),
+                                jobstatus = jobStatus,
+                                meterreading= meterReadingValue
+                            });
+
+                            return (new ScheduleResponse
+                            {
+                                statusCode = StatusCodes.Status200OK.ToString(),
+                                errorMessage = $"Visit has been successfully updated.",
+                                isUpdate = true
+                            });
+                        }
+                    }
+
+                    return (new ScheduleResponse
+                    {
+                        statusCode = StatusCodes.Status400BadRequest.ToString(),
+                        errorMessage = $"No pending visit found for the entered visit no {visitNo}.",
+                        isUpdate = false
+                    });
+                }                
             }
-        }        
+        }
+
+        private string CheckForExistingVisits(string serialNo, string visitColumn, SqlConnection connection)
+        {
+            string query = $@"
+            SELECT TOP 1 T_ID 
+            FROM TBL_SERVICE_SCEDULE_UPDATE 
+            WHERE COM_ID = '001'
+            AND SERIAL_NO = @serialno
+            AND IS_ACTIVE = '1'
+            AND ({visitColumn}_SMS IS NULL OR {visitColumn} IS NULL)
+            ORDER BY T_ID DESC";
+
+            var result = connection.QueryFirstOrDefault<string>(query, new { serialno = serialNo });
+            return result;
+        }
 
         //Get Monthly Machine Information 
         public async Task<List<ServiceVisitMonthlyInfo>> GetMonthlyVisits(string techCode)
@@ -317,4 +495,21 @@ namespace ServvistaWebAppAPI.Services
             }
         }
     }
+}
+
+public class ServiceVisit
+{
+    public DateTime? SV1 { get; set; }
+    public DateTime? SV2 { get; set; }
+    public DateTime? SV3 { get; set; }
+    public DateTime? SV4 { get; set; }
+    public DateTime? SV5 { get; set; }
+    public DateTime? SV6 { get; set; }
+}
+
+public class ScheduleResponse
+{
+    public string statusCode { get; set; }
+    public string errorMessage { get; set; }
+    public bool isUpdate { get; set; }
 }
