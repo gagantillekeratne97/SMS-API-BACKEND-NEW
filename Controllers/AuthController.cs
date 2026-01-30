@@ -35,6 +35,13 @@ namespace ServvistaWebAppAPI.Controllers
 
             var (token, expiresAt) = _jwt.GenerateToken(user.TECH_CODE);
 
+            var refreshToken = new RefreshToken { 
+                Token = _jwt.GenerateRefreshToken(),
+                UserId = user.TECH_CODE,
+                Expires = DateTime.UtcNow.AddDays(7),
+                Created = DateTime.UtcNow,                 
+            };
+
             return Ok(new LoginResponseModel { 
                 TOKEN = token, 
                 TECH_CODE = user.TECH_CODE,

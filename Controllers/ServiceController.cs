@@ -18,16 +18,30 @@ namespace ServvistaWebAppAPI.Controllers
         //PUT api/service/updateservicevisit?techCode={techCode}&visitno={visitno}&machinerefno={machinerefno}&jobStatus={jobstatus}
         [Authorize]
         [HttpPost("updateservicevisit")]
-        public IActionResult UpdateServiceVisit(string techCode, int visitNo, string machineRefNo, string jobStatus, int meterReadingValue)
+        public IActionResult UpdateServiceVisit(string techCode, 
+                                                int visitNo, 
+                                                string machineRefNo, 
+                                                string jobStatus, 
+                                                int meterReadingValue, 
+                                                int hologramNumber)
         {
             try
             {
-                _serviceSchedule.UpdateServiceSchedule(techCode, visitNo, machineRefNo, jobStatus, meterReadingValue);
-                return Ok("Service Visit Updated Successfully.");
+                var result = _serviceSchedule.UpdateServiceSchedule(techCode, 
+                                                       visitNo, 
+                                                       machineRefNo, 
+                                                       jobStatus, 
+                                                       meterReadingValue, 
+                                                       hologramNumber).Result;
+
+                return Ok(new { result.errorMessage, result.statusCode});
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message); 
+                return BadRequest(new { 
+                    errorMessage = ex.Message, 
+                    statusCode = 500
+                }); 
             }
         }
 
@@ -77,6 +91,23 @@ namespace ServvistaWebAppAPI.Controllers
             catch (Exception ex)
             {
                 return BadRequest(ex.Message);
+            }
+        }
+
+        //New api endpoints 
+        //Service Schedule Recall Endpoints
+        [Authorize]
+        [HttpGet("alltimedueservices")]
+        public async Task<IActionResult> GetAllTimeDueServices(string techCode)
+        {
+            try
+            {
+                var result = _serviceSchedule.GetDueServiceVisits(techCode).Result;
+                return Ok(result); 
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message); 
             }
         }
 
