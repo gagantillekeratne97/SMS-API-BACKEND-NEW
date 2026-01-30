@@ -1,5 +1,7 @@
 ﻿using Dapper;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.VisualBasic;
+using ServvistaWebAppAPI.Classes;
 using System.Data;
 using System.Data.SqlClient;
 
@@ -26,15 +28,22 @@ namespace ServvistaWebAppAPI.Services
             {
                 try
                 {
-                    //using (IDbConnection db = new SqlConnection(connectionString))
-                    //{
-                    //    string sql = @"
-                    //    SELECT TOP 1 *
-                    //    FROM YourTable
-                    //    WHERE UserCode = @UserCode
-                    //    ORDER BY Id DESC
-                    //";                        
-                    //}
+                    using (SqlConnection connection = new SqlConnection(connectionString))
+                    {
+                        connection.Open();
+                        string query = @"
+                        SELECT DJ_ID AS jobID, DJ_DATE AS jobDate, SERIAL_NO AS serialNo, 
+                        MACHINE_REF_NO AS machineRefNo, NOTE AS note, CUS_ADD1 AS customerName, JOB_STATUS AS jobStatus 
+                        FROM TBL_DAILY_JOBS 
+                        WHERE IS_TECH_NOTIFIED = '0'";                        
+
+                        var result = await connection.QueryAsync<JobNotificationModel>(query);
+
+                        if (result != null)
+                        {
+
+                        }
+                    }                                       
                 }
                 catch (Exception ex)
                 {
