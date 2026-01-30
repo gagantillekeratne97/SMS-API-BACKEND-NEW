@@ -23,11 +23,14 @@ namespace ServvistaWebAppAPI.Controllers
                                                 string machineRefNo, 
                                                 string jobStatus, 
                                                 int meterReadingValue, 
-                                                int hologramNumber)
+                                                int hologramNumber, 
+                                                int jobId)
         {
             try
             {
-                var result = _serviceSchedule.UpdateServiceSchedule(techCode, 
+                var result = _serviceSchedule.UpdateServiceSchedule(
+                                                       jobId,
+                                                       techCode, 
                                                        visitNo, 
                                                        machineRefNo, 
                                                        jobStatus, 
