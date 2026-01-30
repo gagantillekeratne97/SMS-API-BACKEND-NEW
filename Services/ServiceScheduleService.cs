@@ -223,7 +223,7 @@ namespace ServvistaWebAppAPI.Services
                         ('SV5', s.SV5, s.EXPT_SV5),
                         ('SV6', s.SV6, s.EXPT_SV6)
                 ) v (VisitNo, ActualVisit, ExpectedDate)
-                WHERE s.TECH_CODE = '0000'
+                WHERE s.TECH_CODE = @techcode
                   AND s.IS_ACTIVE = '0'
                   AND v.ActualVisit IS NULL                     -- not completed
                   AND v.ExpectedDate IS NOT NULL
@@ -272,17 +272,16 @@ namespace ServvistaWebAppAPI.Services
         }
 
         //Available visits count 
-        private async Task<int> AvailableLatestVisit(string serialNo, int visitsPerYear, SqlConnection connection)
+        private async Task<int> AvailableLatestVisit(int jobID, string serialNo, int visitsPerYear, SqlConnection connection)
         {
             string query = @"
             SELECT TOP 1 SV1, SV2, SV3, SV4, SV5, SV6
             FROM TBL_SERVICE_SCEDULE_UPDATE
-            WHERE SERIAL_NO = @SerialNo
-              AND IS_ACTIVE = 1
-            ORDER BY T_ID DESC";
+            WHERE SERIAL_NO = @SerialNo AND T_ID = @rowid            
+            ";
 
             var result = await connection.QueryFirstOrDefaultAsync<ServiceVisit>(
-                query, new { SerialNo = serialNo });
+                query, new { SerialNo = serialNo, rowid = jobID });
 
             if (result == null)
                 return 1;
@@ -309,16 +308,15 @@ namespace ServvistaWebAppAPI.Services
         }
 
         //Check for latest visits 
-        private async Task<int> CheckForLatestVisits(string serialNo, int visitsPerYear, SqlConnection connection)
+        private async Task<int> CheckForLatestVisits(int jobID, string serialNo, int visitsPerYear, SqlConnection connection)
         {
             int latestVisitNo = 0;
             string query = @"
                 SELECT SV1, SV2, SV3, SV4, SV5, SV6
                 FROM TBL_SERVICE_SCEDULE_UPDATE 
-                WHERE SERIAL_NO = @serialno AND IS_ACTIVE = 1
-                ORDER BY T_ID DESC";
+                WHERE SERIAL_NO = @serialno AND T_ID = @rowid";
             var result = connection.QueryFirstOrDefaultAsync<ServiceVisit>(
-            query, new { SerialNo = serialNo });
+            query, new { SerialNo = serialNo, rowid = jobID });
 
             if (result.Result == null)
                 return 0;
@@ -341,7 +339,9 @@ namespace ServvistaWebAppAPI.Services
         }
 
         //Update Service Schedule Visit 
-        public async Task<ScheduleResponse> UpdateServiceSchedule(string techCode, 
+        public async Task<ScheduleResponse> UpdateServiceSchedule(
+                                                int jobID,
+                                                string techCode, 
                                                 int visitNo, 
                                                 string machineRefNo, 
                                                 string jobStatus, 
@@ -393,8 +393,8 @@ namespace ServvistaWebAppAPI.Services
                     serviceVisitsCount = Convert.ToInt32(machineInfo.VISITS_PER_YEAR);
                 }
 
-                int latestVisits = await CheckForLatestVisits(serialNo, serviceVisitsCount, connection);
-                int availableVisit = await AvailableLatestVisit(serialNo, serviceVisitsCount, connection);
+                int latestVisits = await CheckForLatestVisits(jobID, serialNo, serviceVisitsCount, connection);
+                int availableVisit = await AvailableLatestVisit(jobID, serialNo, serviceVisitsCount, connection);
 
                 if (latestVisits >= visitNo)
                 {                                        
@@ -407,47 +407,31 @@ namespace ServvistaWebAppAPI.Services
                 }
                 else
                 {
-                    var result = CheckForExistingVisits(serialNo, $"SV{visitNo}", connection);
-                    if (result != null)
+                    string updateQuery = $@"
+                    UPDATE TBL_SERVICE_SCEDULE_UPDATE
+                    SET 
+                    SV{visitNo} = @visitDate, 
+                    SV{visitNo}_STATUS = @jobStatus,
+                    SV{visitNo}_MR = @meterReading 
+                    WHERE TECH_CODE = @techCode
+                    AND MACHINE_REF = @machineRefNo
+                    AND T_ID = @rowId
+                    ";
+
+                    connection.Execute(updateQuery, new
                     {
-                        if (serviceVisitsCount < visitNo)
-                        {
-                            return (new ScheduleResponse
-                            {
-                                statusCode = StatusCodes.Status400BadRequest.ToString(),
-                                errorMessage = $"Visits entering is invalid. Visits Per Year for this machine is {serviceVisitsCount}",
-                                isUpdate = false
-                            });
-                        }
-                        else
-                        {
-                            string updateQuery = $@"
-                                UPDATE TBL_SERVICE_SCEDULE_UPDATE 
-                                SET SV{visitNo} = @visitdate, SV{visitNo}_STATUS = @jobstatus, SV{visitNo}_MR = @meterreading
-                                WHERE TECH_CODE = @techcode AND IS_ACTIVE = '1' AND MACHINE_REF = @machinerefno";
-
-                            connection.Execute(updateQuery, new
-                            {
-                                techcode = techCode,
-                                machinerefno = machineRefNo,
-                                visitdate = GetSriLankanTime(),
-                                jobstatus = jobStatus,
-                                meterreading= meterReadingValue
-                            });
-
-                            return (new ScheduleResponse
-                            {
-                                statusCode = StatusCodes.Status200OK.ToString(),
-                                errorMessage = $"Visit has been successfully updated.",
-                                isUpdate = true
-                            });
-                        }
-                    }
+                        techcode = techCode,
+                        machinerefno = machineRefNo,
+                        visitdate = GetSriLankanTime(),
+                        jobstatus = jobStatus,
+                        meterreading = meterReadingValue,
+                        rowid = jobID
+                    });                    
 
                     return (new ScheduleResponse
                     {
                         statusCode = StatusCodes.Status400BadRequest.ToString(),
-                        errorMessage = $"No pending visit found for the entered visit no {visitNo}.",
+                        errorMessage = $"Your visit has been successfully updated. visit no {visitNo}.",
                         isUpdate = false
                     });
                 }                
@@ -463,7 +447,7 @@ namespace ServvistaWebAppAPI.Services
             AND SERIAL_NO = @serialno
             AND IS_ACTIVE = '1'
             AND ({visitColumn}_SMS IS NULL OR {visitColumn} IS NULL)
-            ORDER BY T_ID DESC";
+            ";
 
             var result = connection.QueryFirstOrDefault<string>(query, new { serialno = serialNo });
             return result;
