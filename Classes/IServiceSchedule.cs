@@ -15,5 +15,6 @@ namespace ServvistaWebAppAPI.Classes
                                    int hologramNumber);
         Task<List<PreviousServiceVisitModel>> GetPreviousServiceVisits(string techCode, string machineRefNo);
         Task<List<ServiceVisitMonthlyInfo>> GetTotalServiceVisits(string techCode);
+        Task<List<ServiceVisitMonthlyInfo>> GetDueServiceVisits(string techCode);
     }
 }

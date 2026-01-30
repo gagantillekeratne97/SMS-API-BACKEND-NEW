@@ -94,6 +94,23 @@ namespace ServvistaWebAppAPI.Controllers
             }
         }
 
+        //New api endpoints 
+        //Service Schedule Recall Endpoints
+        [Authorize]
+        [HttpGet("alltimedueservices")]
+        public async Task<IActionResult> GetAllTimeDueServices(string techCode)
+        {
+            try
+            {
+                var result = _serviceSchedule.GetDueServiceVisits(techCode).Result;
+                return Ok(result); 
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message); 
+            }
+        }
+
         //GET api/service/getpreviousvisits?techCode={techcode}&machinerefno={machinerefno} 
         [Authorize]
         [HttpGet("previousservicelists")]

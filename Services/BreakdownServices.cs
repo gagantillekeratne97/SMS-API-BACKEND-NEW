@@ -59,6 +59,25 @@ namespace ServvistaWebAppAPI.Services
             return breakdownModelsLists;
         }
 
+        public async Task<List<BreakdownModel>> GetDueJobsLists(string techCode)
+        {
+            List<BreakdownModel> breakdownModels = new List<BreakdownModel>();
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                string query = @"
+                    SELECT DJ_ID, SERIAL_NO, MACHINE_REF_NO, CUS_NAME, CUS_ADD1, CUS_ADD2, CUS_ADD3, CUS_CONTACT, 
+                    CUS_TEL_NO, TEAM_ID, TEAM_NAME, DJ_DATE, TECH_CODE, TECH_MOBILE, MACHINE_MODEL_ID, MACHINE_MODEL_NAME, CUS_STATUS, JOB_STATUS
+                    FROM TBL_DAILY_JOBS
+                    WHERE TECH_CODE = @techcode
+                    AND JOB_STATUS = 'TECH ALLOCATED'";
+                var result = connection.Query<BreakdownModel>(query, new { techcode = techCode });
+                breakdownModels = result.ToList();
+            }
+
+            return breakdownModels; 
+        }
+
         public async Task<List<BreakdownModel>> GetPendingLists(string techCode) 
         {
             List<BreakdownModel> breakdownModel = new List<BreakdownModel>();
@@ -89,16 +108,28 @@ namespace ServvistaWebAppAPI.Services
         //Get all total breakdown jobs
         public async Task<List<BreakdownModel>> GetTotalBreakdowns(string techCode)
         {
-            List<BreakdownModel> breakdownModels = new List<BreakdownModel>();
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
-                connection.Open(); 
-                string query = @"SELECT * FROM TBL_DAILY_JOBS WHERE TECH_CODE = @techcode";
-                var result = connection.Query<BreakdownModel>(query, new { techcode = techCode }).ToList();
-                breakdownModels = result;
-            }
+                await connection.OpenAsync(); 
+                DateTime todayDate = GetSriLankanTime().Date;
+                DateTime startOfLastMonth = new DateTime(todayDate.Year, todayDate.Month, 1).AddMonths(-1);
+                DateTime startOfThisMonth = new DateTime(todayDate.Year, todayDate.Month, 1);
 
-            return breakdownModels; 
+                string query = @"
+                SELECT * 
+                FROM TBL_DAILY_JOBS 
+                WHERE TECH_CODE = @techcode 
+                AND DJ_DATE >= @startoflastmonth
+                AND DJ_DATE <= @startofthismonth"; 
+                var breakdowns = await connection.QueryAsync<BreakdownModel>(query, new
+                {
+                    techcode = techCode,
+                    startoflastmonth = startOfLastMonth,
+                    startofthismonth = startOfThisMonth
+                });
+                
+                return breakdowns.ToList();
+            }
         }
 
         //Update Breakdown Jobs
