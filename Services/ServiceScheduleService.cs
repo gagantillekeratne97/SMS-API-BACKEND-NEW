@@ -418,7 +418,7 @@ namespace ServvistaWebAppAPI.Services
                     AND T_ID = @rowId
                     ";
 
-                    connection.Execute(updateQuery, new
+                    var result = connection.Execute(updateQuery, new
                     {
                         techcode = techCode,
                         machinerefno = machineRefNo,
@@ -461,38 +461,36 @@ namespace ServvistaWebAppAPI.Services
             {
                 connection.Open();
                 string query = @"
-                            SELECT
-                                s.T_ID        AS rowId,
-                                s.CUS_ID      AS customerID,
-                                c.CUS_NAME    AS customerName,    
-	                            c.CONTACT_PERSON AS contactPerson,
-	                            c.TEL_NO	  AS customerTelephone,
-	                            s.M_LOC1	  AS machineLocation01, 
-	                            s.M_LOC2	  AS machineLocation02, 
-	                            s.M_LOC3	  AS machineLocation03, 
-                                s.MACHINE_REF AS machineRefNo,
-                                v.VisitNo     AS expectedVisitNo,
-                                CONVERT(char(10), v.ExpectedDate, 120) AS expectedVisitDate,
-                                CASE 
-                                    WHEN v.ActualVisit IS NOT NULL THEN 'COMPLETED'
-                                    ELSE 'PENDING'
-                                END AS VisitStatus
-                            FROM dbo.TBL_SERVICE_SCEDULE_UPDATE s
-                            INNER JOIN dbo.MTBL_CUSTOMER_MASTER c
-                                ON c.CUS_CODE = s.CUS_ID
-                            CROSS APPLY
-                            (
-                                VALUES
-                                    ('EXPT_SV1', s.EXPT_SV1, s.SV1),
-                                    ('EXPT_SV2', s.EXPT_SV2, s.SV2),
-                                    ('EXPT_SV3', s.EXPT_SV3, s.SV3),
-                                    ('EXPT_SV4', s.EXPT_SV4, s.SV4),
-                                    ('EXPT_SV5', s.EXPT_SV5, s.SV5),
-                                    ('EXPT_SV6', s.EXPT_SV6, s.SV6)
-                            ) v (VisitNo, ExpectedDate, ActualVisit)
-                            WHERE s.TECH_CODE = @techcode
-                              AND v.ExpectedDate BETWEEN @firstdaymonth AND @lastdayofmonth
-                            ORDER BY v.ExpectedDate, v.VisitNo;";
+                SELECT
+                    s.T_ID        AS rowId,
+                    s.CUS_ID      AS customerID,
+                    c.CUS_NAME    AS customerName,    
+                    c.CONTACT_PERSON AS contactPerson,
+                    c.TEL_NO      AS customerTelephone,
+                    s.M_LOC1      AS machineLocation01, 
+                    s.M_LOC2      AS machineLocation02, 
+                    s.M_LOC3      AS machineLocation03, 
+                    s.MACHINE_REF AS machineRefNo,
+                    v.VisitNo     AS expectedVisitNo,
+                    CONVERT(char(10), v.ExpectedDate, 120) AS expectedVisitDate,
+                    v.VisitStatus AS VisitStatus
+                FROM dbo.TBL_SERVICE_SCEDULE_UPDATE s
+                INNER JOIN dbo.MTBL_CUSTOMER_MASTER c
+                    ON c.CUS_CODE = s.CUS_ID
+                CROSS APPLY
+                (
+                    VALUES
+                        ('EXPT_SV1', s.EXPT_SV1, s.SV1, s.SV1_STATUS),
+                        ('EXPT_SV2', s.EXPT_SV2, s.SV2, s.SV2_STATUS),
+                        ('EXPT_SV3', s.EXPT_SV3, s.SV3, s.SV3_STATUS),
+                        ('EXPT_SV4', s.EXPT_SV4, s.SV4, s.SV4_STATUS),
+                        ('EXPT_SV5', s.EXPT_SV5, s.SV5, s.SV5_STATUS),
+                        ('EXPT_SV6', s.EXPT_SV6, s.SV6, s.SV6_STATUS)
+                ) v (VisitNo, ExpectedDate, ActualVisit, VisitStatus)
+                WHERE s.TECH_CODE = @techcode
+                  AND v.ExpectedDate BETWEEN @firstdaymonth AND @lastdayofmonth
+                ORDER BY v.ExpectedDate, v.VisitNo;";
+
                 DateTime today = GetSriLankanTime();
                 DateTime startDate = new DateTime(today.Year, today.Month, 1);
                 DateTime endDate = startDate.AddMonths(1);
