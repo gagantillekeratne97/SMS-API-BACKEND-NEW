@@ -407,7 +407,7 @@ namespace ServvistaWebAppAPI.Services
                 if (jobStatus == "COMPLETED")
                 {
                     //Updating the service schedule table 
-                    string updateQuery = $@"
+                    string updateServiceVisitQuery = $@"
                     UPDATE TBL_SERVICE_SCEDULE_UPDATE
                     SET                     
                     SV{visitNo}_STATUS = 'COMPLETED',
@@ -560,7 +560,7 @@ namespace ServvistaWebAppAPI.Services
                         }
                     }
 
-                    var updateServiceVisitResult = await connection.ExecuteAsync(updateQuery, new
+                    var updateServiceVisitResult = await connection.ExecuteAsync(updateServiceVisitQuery, new
                     {
                         visitdate = GetSriLankanTime().Date,                        
                         meterreading = meterReadingValue,
@@ -581,57 +581,45 @@ namespace ServvistaWebAppAPI.Services
                     }
                 }
 
-                if (latestVisits >= visitNo)
-                {                                        
-                    return (new ScheduleResponse
-                    {
-                        statusCode = StatusCodes.Status400BadRequest.ToString(),
-                        errorMessage = $"Your entered visit no is expired. Available Visit No {availableVisit}", 
-                        isUpdate = false
-                    });
-                }
-                else
-                {
-                    string updateQuery = $@"
+                string updateQuery = $@"
                     UPDATE TBL_SERVICE_SCEDULE_UPDATE
                     SET 
                     SV{visitNo} = @visitdate, 
                     SV{visitNo}_STATUS = @jobstatus,
-                    SV{visitNo}_MR = @meterreading, 
+                    SV{visitNo}_MR = @meterreading
                     WHERE TECH_CODE = @techcode
                     AND MACHINE_REF = @machinerefno 
                     AND T_ID = @rowid
                     ";
 
-                    var result = connection.Execute(updateQuery, new
-                    {
-                        visitdate = GetSriLankanTime().Date,
-                        jobstatus = jobStatus,
-                        meterreading = meterReadingValue,
-                        techcode = techCode,
-                        machinerefno = machineRefNo,
-                        rowid = jobID
-                    });
+                var result = connection.Execute(updateQuery, new
+                {
+                    visitdate = GetSriLankanTime().Date,
+                    jobstatus = jobStatus,
+                    meterreading = meterReadingValue,
+                    techcode = techCode,
+                    machinerefno = machineRefNo,
+                    rowid = jobID
+                });
 
-                    if (result > 0)
+                if (result > 0)
+                {
+                    return new ScheduleResponse
                     {
-                        return new ScheduleResponse
-                        {
-                            statusCode = StatusCodes.Status200OK.ToString(),
-                            errorMessage = $"Your visit has been successfully updated. Visit No {visitNo}.",
-                            isUpdate = true
-                        };
-                    }
-                    else
+                        statusCode = StatusCodes.Status200OK.ToString(),
+                        errorMessage = $"Your visit has been successfully updated. Visit No {visitNo}.",
+                        isUpdate = true
+                    };
+                }
+                else
+                {
+                    return new ScheduleResponse
                     {
-                        return new ScheduleResponse
-                        {
-                            statusCode = StatusCodes.Status400BadRequest.ToString(),
-                            errorMessage = "No record was updated. Please check the visit number.",
-                            isUpdate = false
-                        };
-                    }
-                }                
+                        statusCode = StatusCodes.Status400BadRequest.ToString(),
+                        errorMessage = "No record was updated. Please check the visit number.",
+                        isUpdate = false
+                    };
+                }
             }
         }        
 
