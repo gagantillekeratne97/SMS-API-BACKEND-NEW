@@ -363,6 +363,7 @@ namespace ServvistaWebAppAPI.Services
                 string techName = "";
                 string techMobile = "";
                 int serviceVisitsCount = 0;
+                bool isActive = false;
 
                 await connection.OpenAsync();
 
@@ -403,25 +404,20 @@ namespace ServvistaWebAppAPI.Services
                 int latestVisits = await CheckForLatestVisits(jobID, serialNo, serviceVisitsCount, connection);
                 int availableVisit = await AvailableLatestVisit(jobID, serialNo, serviceVisitsCount, connection);
 
-                if (jobStatus == "complete")
+                if (jobStatus == "COMPLETED")
                 {
                     //Updating the service schedule table 
                     string updateQuery = $@"
                     UPDATE TBL_SERVICE_SCEDULE_UPDATE
                     SET                     
-                    SV{visitNo}_STATUS = 'complete',
+                    SV{visitNo}_STATUS = 'COMPLETED',
                     SV{visitNo}_SMS = @visitdate,
                     SV{visitNo}_MR = @meterreading, 
                     IS_ACTIVE = @isactive
                     WHERE TECH_CODE = @techcode
                     AND MACHINE_REF = @machinerefno 
                     AND T_ID = @rowid
-                    ";
-
-                    if (visitNo == 4)
-                    {
-
-                    }
+                    ";                    
 
                     //Inserting record to SS Visits SMS table 
                     string insertSSVisitSMS = @"
@@ -534,7 +530,35 @@ namespace ServvistaWebAppAPI.Services
                         servicesdocreciveddate = GetSriLankanTime().Date,
                         smsreciveddate = GetSriLankanTime().Date,
                         crby = techCode
-                    });                   
+                    });
+
+                    if (visitNo == 4)
+                    {
+                        string query = $@"
+                        SELECT
+                            CASE
+                                WHEN SV1 IS NULL
+                                 AND SV2 IS NULL
+                                 AND SV3 IS NULL
+                                 AND SV4 IS NULL
+                                 AND SV5 IS NULL
+                                 AND SV6 IS NULL
+                                THEN 1
+                                ELSE 0
+                            END AS IsAllNull
+                        FROM TBL_SERVICE_SCEDULE_UPDATE
+                        WHERE T_ID = @jobid;
+                        ";
+                        bool isAllCompleted = connection.QuerySingle<bool>(query, new { jobid = jobID});
+                        if (isAllCompleted == false)
+                        {
+                            isActive = true;
+                        }
+                        else
+                        {
+                            isActive = false;
+                        }
+                    }
 
                     var updateServiceVisitResult = await connection.ExecuteAsync(updateQuery, new
                     {
@@ -542,7 +566,8 @@ namespace ServvistaWebAppAPI.Services
                         meterreading = meterReadingValue,
                         techcode = techCode,
                         machinerefno = machineRefNo,
-                        rowid = jobID
+                        rowid = jobID, 
+                        isactive = isActive
                     });
 
                     if ((updateServiceVisitResult > 0) && (insertSSVisitSMSResult > 0))
@@ -572,7 +597,7 @@ namespace ServvistaWebAppAPI.Services
                     SET 
                     SV{visitNo} = @visitdate, 
                     SV{visitNo}_STATUS = @jobstatus,
-                    SV{visitNo}_MR = @meterreading 
+                    SV{visitNo}_MR = @meterreading, 
                     WHERE TECH_CODE = @techcode
                     AND MACHINE_REF = @machinerefno 
                     AND T_ID = @rowid
