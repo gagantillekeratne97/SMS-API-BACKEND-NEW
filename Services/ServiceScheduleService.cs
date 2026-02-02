@@ -345,8 +345,9 @@ namespace ServvistaWebAppAPI.Services
                                                 int visitNo, 
                                                 string machineRefNo, 
                                                 string jobStatus, 
-                                                int meterReadingValue, 
-                                                int hologramNumber)
+                                                int? meterReadingValue, 
+                                                int? hologramNumber, 
+                                                string solution)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
@@ -396,6 +397,153 @@ namespace ServvistaWebAppAPI.Services
                 int latestVisits = await CheckForLatestVisits(jobID, serialNo, serviceVisitsCount, connection);
                 int availableVisit = await AvailableLatestVisit(jobID, serialNo, serviceVisitsCount, connection);
 
+                if (jobStatus == "complete")
+                {
+                    //Updating the service schedule table 
+                    string updateQuery = $@"
+                    UPDATE TBL_SERVICE_SCEDULE_UPDATE
+                    SET                     
+                    SV{visitNo}_STATUS = 'complete',
+                    SV{visitNo}_SMS = @visitdate,
+                    SV{visitNo}_MR = @meterreading 
+                    WHERE TECH_CODE = @techcode
+                    AND MACHINE_REF = @machinerefno 
+                    AND T_ID = @rowid
+                    ";
+
+                    //Inserting record to SS Visits SMS table 
+                    string insertSSVisitSMS = @"
+                    INSERT INTO TBL_SS_VISITS_SMS
+                    (COM_ID, 
+                    MOBILE_NO, 
+                    TECH_CODE, 
+                    SERIAL_NO, 
+                    MACHINE_REF_CODE,
+                    METER_READING, 
+                    VISIT_DATE,
+                    T_STATUS, 
+                    CONFIRM_BY, 
+                    CONFIRM_DATE)
+                    VALUES (
+                    @companyid,
+                    @mobileno, 
+                    @techcode, 
+                    @serialno, 
+                    @machinerefno, 
+                    @meterreading, 
+                    @visitdate, 
+                    @tstatus, 
+                    @confirmby, 
+                    @confirmdate)";
+
+                    //Get the latest MeterReadingID for TBL_METER_READING table 
+                    string getLastMRID = @"SELECT ISNULL(MAX(MR_ID), 0) FROM TBL_METER_READING"; 
+                    int lastMRID = 0;
+                    var lastMRIDResult = connection.QuerySingleOrDefault<int>(getLastMRID);
+                    int newmrId = lastMRIDResult + 1;
+
+                    string insertMeterReadingQuery = @"
+                    INSERT INTO TBL_METER_READING 
+                    (MR_ID, COM_ID, SERIAL_NO, MACHINE_REF_NO, CUS_ID, CUS_NAME, ADD1, ADD2, ADD3, MR_DATE, 
+                    REMARKS, MACHINE_ID, MACHINE_NAME, TECH_CODE, TECH_NAME, PURPOSE_OF_VISIT, 
+                    NO_OF_VISIT, MILAGE_START, MILAGE_END, EXPENCES, CATEGORY, 
+                    METER_TOTAL_COPY, BLACK_COPIES, COLOR_COPIES, METER_MASTER, MR_ADDED_DATE, CURRENT_SERVICE_DATE, SS_ID, SERVICES_DOC_RECIVED_DATE, 
+                    SMS_RECIVED_DATE, CR_BY)
+                    VALUES (
+                    @mrid, @companyid, @serialno, @machinerefno, @cusid, @cusname, @add1, @add2, @add3, @mrdate,
+                    @remarks, @machineid, @machinename, @techcode, @techname, @purposeofvisit,
+                    @noofvisit, @milagestart, @milageend, @expences, @category,
+                    @mertotcopy, @blackcopies, @colorcopies, @metermaster, @mradeddate, @currentservicedate, @ssid, @servicesdocreciveddate,
+                    @smsreciveddate, @crby
+                    )";
+
+                    string insertServiceVisitSolutionQuery = @"
+                    INSERT INTO TBL_SERVICE_VISIT_SOLUTION 
+                    (SERIAL_NO, MACHINE_REF_NO, TECH_CODE, TECH_NAME, JOB_ID, SOLUTION, JOB_STATUS, VISIT_NO) 
+                    VALUES 
+                    (@serialno, @machinerefno, @techcode, @techname, @jobid, @solution, @jobstatus, @visitno)";
+
+                    var insertServiceVisitSolutionResult = connection.Execute(insertServiceVisitSolutionQuery, new
+                    {
+                        serialno = serialNo,
+                        machinerefno = machineRefNo,
+                        techcode = techCode,
+                        techname = techName,
+                        jobid = jobID,
+                        solution = solution,
+                        jobstatus = jobStatus,
+                        visitno = visitNo
+                    });
+
+                    var insertMeterReadingResult = connection.Execute(insertMeterReadingQuery, new
+                    {
+                        mrid = newmrId,
+                        companyid = "001",
+                        serialno = serialNo,
+                        machinerefno = machineRefNo,
+                        cusid = customerCode,
+                        cusname = customerName,
+                        add1 = customerAdd1,
+                        add2 = customerAdd2,
+                        add3 = customerAdd3,
+                        mrdate = GetSriLankanTime().Date,
+                        remarks = solution,
+                        machineid = machineId,
+                        machinename = machineModel,
+                        techcode = techCode,
+                        techname = techName,
+                        purposeofvisit = "Service Visit",
+                        noofvisit = visitNo,
+                        milagestart = 0,
+                        milageend = meterReadingValue,
+                        expences = 0,
+                        category = "SERVICE",
+                        mertotcopy = meterReadingValue,
+                        blackcopies = 0,
+                        colorcopies = 0,
+                        metermaster = meterReadingValue,
+                        mradeddate = GetSriLankanTime().Date,
+                        currentservicedate = GetSriLankanTime().Date,
+                        ssid = jobID,
+                        servicesdocreciveddate = GetSriLankanTime().Date,
+                        smsreciveddate = GetSriLankanTime().Date,
+                        crby = techCode
+                    });
+
+                    var insertSSVisitSMSResult = connection.Execute(insertSSVisitSMS, new
+                    {
+                        companyid = "001",
+                        mobileno = "", // Mobile number can be fetched and added here
+                        techcode = techCode,
+                        serialno = serialNo,
+                        machinerefno = machineRefNo,
+                        meterreading = meterReadingValue,
+                        visitdate = GetSriLankanTime().Date,
+                        tstatus = jobStatus,
+                        confirmby = techCode,
+                        confirmdate = GetSriLankanTime().Date
+                    });
+
+                    var updateServiceVisitResult = connection.Execute(updateQuery, new
+                    {
+                        visitdate = GetSriLankanTime().Date,                        
+                        meterreading = meterReadingValue,
+                        techcode = techCode,
+                        machinerefno = machineRefNo,
+                        rowid = jobID
+                    });
+
+                    if ((updateServiceVisitResult > 0) && (insertSSVisitSMSResult > 0))
+                    {
+                        return new ScheduleResponse
+                        {
+                            statusCode = StatusCodes.Status200OK.ToString(),
+                            errorMessage = $"Your visit has been successfully updated. Visit No {visitNo}.",
+                            isUpdate = true
+                        };
+                    }
+                }
+
                 if (latestVisits >= visitNo)
                 {                                        
                     return (new ScheduleResponse
@@ -410,33 +558,45 @@ namespace ServvistaWebAppAPI.Services
                     string updateQuery = $@"
                     UPDATE TBL_SERVICE_SCEDULE_UPDATE
                     SET 
-                    SV{visitNo} = @visitDate, 
-                    SV{visitNo}_STATUS = @jobStatus,
-                    SV{visitNo}_MR = @meterReading 
-                    WHERE TECH_CODE = @techCode
-                    AND MACHINE_REF = @machineRefNo
-                    AND T_ID = @rowId
+                    SV{visitNo} = @visitdate, 
+                    SV{visitNo}_STATUS = @jobstatus,
+                    SV{visitNo}_MR = @meterreading 
+                    WHERE TECH_CODE = @techcode
+                    AND MACHINE_REF = @machinerefno 
+                    AND T_ID = @rowid
                     ";
 
                     var result = connection.Execute(updateQuery, new
                     {
-                        techcode = techCode,
-                        machinerefno = machineRefNo,
-                        visitdate = GetSriLankanTime(),
+                        visitdate = GetSriLankanTime().Date,
                         jobstatus = jobStatus,
                         meterreading = meterReadingValue,
+                        techcode = techCode,
+                        machinerefno = machineRefNo,
                         rowid = jobID
-                    });                    
-
-                    return (new ScheduleResponse
-                    {
-                        statusCode = StatusCodes.Status400BadRequest.ToString(),
-                        errorMessage = $"Your visit has been successfully updated. visit no {visitNo}.",
-                        isUpdate = false
                     });
+
+                    if (result > 0)
+                    {
+                        return new ScheduleResponse
+                        {
+                            statusCode = StatusCodes.Status200OK.ToString(),
+                            errorMessage = $"Your visit has been successfully updated. Visit No {visitNo}.",
+                            isUpdate = true
+                        };
+                    }
+                    else
+                    {
+                        return new ScheduleResponse
+                        {
+                            statusCode = StatusCodes.Status400BadRequest.ToString(),
+                            errorMessage = "No record was updated. Please check the visit number.",
+                            isUpdate = false
+                        };
+                    }
                 }                
             }
-        }
+        }        
 
         private string CheckForExistingVisits(string serialNo, string visitColumn, SqlConnection connection)
         {

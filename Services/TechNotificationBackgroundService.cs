@@ -11,11 +11,13 @@ namespace ServvistaWebAppAPI.Services
     {
         private readonly ILogger<TechNotificationBackgroundService> _logger;
         private readonly IConfiguration _configuration;
+        private readonly IServiceProvider _serviceProvider; 
 
-        public TechNotificationBackgroundService(ILogger<TechNotificationBackgroundService> logger, IConfiguration configuration)
+        public TechNotificationBackgroundService(ILogger<TechNotificationBackgroundService> logger, IConfiguration configuration, IServiceProvider serviceProvider)
         {
             _logger = logger;
-            _configuration = configuration; 
+            _configuration = configuration;
+            _serviceProvider = serviceProvider;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -41,7 +43,7 @@ namespace ServvistaWebAppAPI.Services
 
                         if (result != null)
                         {
-
+                            
                         }
                     }                                       
                 }

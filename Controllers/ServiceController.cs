@@ -22,9 +22,10 @@ namespace ServvistaWebAppAPI.Controllers
                                                 int visitNo, 
                                                 string machineRefNo, 
                                                 string jobStatus, 
-                                                int meterReadingValue, 
-                                                int hologramNumber, 
-                                                int jobId)
+                                                int? meterReadingValue, 
+                                                int? hologramNumber, 
+                                                int jobId, 
+                                                string solution)
         {
             try
             {
@@ -35,7 +36,8 @@ namespace ServvistaWebAppAPI.Controllers
                                                        machineRefNo, 
                                                        jobStatus, 
                                                        meterReadingValue, 
-                                                       hologramNumber).Result;
+                                                       hologramNumber,
+                                                       solution).Result;
 
                 return Ok(new { result.errorMessage, result.statusCode});
             }

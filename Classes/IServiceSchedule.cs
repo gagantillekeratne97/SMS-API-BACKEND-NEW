@@ -13,8 +13,9 @@ namespace ServvistaWebAppAPI.Classes
                                    int visitNo, 
                                    string machineRefno, 
                                    string jobStatus, 
-                                   int meterReadingValue, 
-                                   int hologramNumber);
+                                   int? meterReadingValue, 
+                                   int? hologramNumber, 
+                                   string solution);
         Task<List<PreviousServiceVisitModel>> GetPreviousServiceVisits(string techCode, string machineRefNo);
         Task<List<ServiceVisitMonthlyInfo>> GetTotalServiceVisits(string techCode);
         Task<List<ServiceVisitMonthlyInfo>> GetDueServiceVisits(string techCode);
