@@ -1,5 +1,16 @@
 ﻿namespace ServvistaWebAppAPI.Models
 {
+    public class ServiceVisitUpdateModel
+    {
+        public string techCode { get; set; }
+        public int visitNo { get; set; }
+        public string machineRefNo { get; set; }
+        public string jobStatus { get; set; }
+        public int? meterReadingValue { get; set; }
+        public int? hologramNumber { get; set; } 
+        public int jobId { get; set; } 
+        public string solution { get; set; }        
+    }
     public class ServiceScheduleModel
     {
         public string machineRefNo { get; set; }

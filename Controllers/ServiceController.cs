@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ServvistaWebAppAPI.Classes;
+using ServvistaWebAppAPI.Models;
 
 namespace ServvistaWebAppAPI.Controllers
 {
@@ -13,42 +14,65 @@ namespace ServvistaWebAppAPI.Controllers
         public ServiceController(IServiceSchedule serviceSchedule, IConfiguration config)
         {        
             _serviceSchedule = serviceSchedule;
-        }                
-        
+        }
+
         //PUT api/service/updateservicevisit?techCode={techCode}&visitno={visitno}&machinerefno={machinerefno}&jobStatus={jobstatus}
         [Authorize]
         [HttpPost("updateservicevisit")]
-        public IActionResult UpdateServiceVisit(string techCode, 
-                                                int visitNo, 
-                                                string machineRefNo, 
-                                                string jobStatus, 
-                                                int? meterReadingValue, 
-                                                int? hologramNumber, 
-                                                int jobId, 
-                                                string solution)
+        public IActionResult UpdateServiceVisit([FromBody] ServiceVisitUpdateModel model)
         {
             try
             {
-                var result = _serviceSchedule.UpdateServiceSchedule(
-                                                       jobId,
-                                                       techCode, 
-                                                       visitNo, 
-                                                       machineRefNo, 
-                                                       jobStatus, 
-                                                       meterReadingValue, 
-                                                       hologramNumber,
-                                                       solution).Result;
-
-                return Ok(new { result.errorMessage, result.statusCode});
+                var result = _serviceSchedule.UpdateServiceSchedule(model.jobId,
+                                                                    model.techCode, 
+                                                                    model.visitNo, 
+                                                                    model.machineRefNo, 
+                                                                    model.jobStatus, 
+                                                                    model.meterReadingValue, 
+                                                                    model.hologramNumber, 
+                                                                    model.solution);
+                return Ok(result);
             }
             catch (Exception ex)
             {
-                return BadRequest(new { 
-                    errorMessage = ex.Message, 
-                    statusCode = 500
-                }); 
+                return BadRequest(ex.Message);
             }
         }
+
+
+        //[Authorize]
+        //[HttpPost("updateservicevisit")]
+        //public IActionResult UpdateServiceVisit(string techCode, 
+        //                                        int visitNo, 
+        //                                        string machineRefNo, 
+        //                                        string jobStatus, 
+        //                                        int? meterReadingValue, 
+        //                                        int? hologramNumber, 
+        //                                        int jobId, 
+        //                                        string solution)
+        //{
+        //    try
+        //    {
+        //        var result = _serviceSchedule.UpdateServiceSchedule(
+        //                                               jobId,
+        //                                               techCode, 
+        //                                               visitNo, 
+        //                                               machineRefNo, 
+        //                                               jobStatus, 
+        //                                               meterReadingValue, 
+        //                                               hologramNumber,
+        //                                               solution).Result;
+
+        //        return Ok(new { result.errorMessage, result.statusCode});
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return BadRequest(new { 
+        //            errorMessage = ex.Message, 
+        //            statusCode = 500
+        //        }); 
+        //    }
+        //}
 
         //GET api/service/getmonthlyservicevisits
         [Authorize]

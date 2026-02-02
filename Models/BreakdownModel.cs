@@ -20,6 +20,7 @@
         public string MACHINE_MODEL_NAME { get; set; }
         public string CUS_STATUS { get; set; }
         public string NOTE { get; set; }
-        public string JOB_STATUS { get; set; }   
-    }
+        public string JOB_STATUS { get; set; }  
+        public bool IS_TECH_NOTIFIED { get; set; }
+    }    
 }
