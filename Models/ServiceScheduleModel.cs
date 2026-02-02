@@ -9,7 +9,7 @@
         public int? meterReadingValue { get; set; }
         public int? hologramNumber { get; set; } 
         public int jobId { get; set; } 
-        public string solution { get; set; }        
+        public string? solution { get; set; }        
     }
     public class ServiceScheduleModel
     {
