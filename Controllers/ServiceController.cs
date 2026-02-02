@@ -30,7 +30,7 @@ namespace ServvistaWebAppAPI.Controllers
                                                                     model.jobStatus, 
                                                                     model.meterReadingValue, 
                                                                     model.hologramNumber, 
-                                                                    model.solution);
+                                                                    model.solution).Result;
                 return Ok(result);
             }
             catch (Exception ex)

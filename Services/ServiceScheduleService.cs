@@ -347,7 +347,7 @@ namespace ServvistaWebAppAPI.Services
                                                 string jobStatus, 
                                                 int? meterReadingValue, 
                                                 int? hologramNumber, 
-                                                string solution)
+                                                string? solution)
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
@@ -361,9 +361,15 @@ namespace ServvistaWebAppAPI.Services
                 string machineId = "";
                 string machineModel = "";
                 string techName = "";
+                string techMobile = "";
                 int serviceVisitsCount = 0;
 
-                connection.Open();
+                await connection.OpenAsync();
+
+                string getTechMobileNo = @"SELECT MOBILE_NO FROM MTBL_TECH_OFFICERS WHERE TECH_CODE = @techcode";
+
+                techMobile = await connection.QuerySingleOrDefaultAsync<string>(getTechMobileNo, new { techcode = techCode });
+
                 string selectMachineQuery = @"
                 SELECT
                 SERIAL_NO, 
@@ -378,7 +384,7 @@ namespace ServvistaWebAppAPI.Services
                 T_OFFICER_NAME,
                 VISITS_PER_YEAR
                 FROM TBL_MACHINE_TRANSACTION WHERE COM_ID = '001' AND MACHINE_REF_CODE = @qnumber";
-                var machineInfo = connection.QuerySingleOrDefault<dynamic>(selectMachineQuery, new { qnumber = machineRefNo });
+                var machineInfo = await connection.QuerySingleOrDefaultAsync<dynamic>(selectMachineQuery, new { qnumber = machineRefNo });
                 if (machineInfo != null)
                 {
                     serialNo = machineInfo.SERIAL_NO;
@@ -405,11 +411,17 @@ namespace ServvistaWebAppAPI.Services
                     SET                     
                     SV{visitNo}_STATUS = 'complete',
                     SV{visitNo}_SMS = @visitdate,
-                    SV{visitNo}_MR = @meterreading 
+                    SV{visitNo}_MR = @meterreading, 
+                    IS_ACTIVE = @isactive
                     WHERE TECH_CODE = @techcode
                     AND MACHINE_REF = @machinerefno 
                     AND T_ID = @rowid
                     ";
+
+                    if (visitNo == 4)
+                    {
+
+                    }
 
                     //Inserting record to SS Visits SMS table 
                     string insertSSVisitSMS = @"
@@ -436,10 +448,24 @@ namespace ServvistaWebAppAPI.Services
                     @confirmby, 
                     @confirmdate)";
 
+                    var insertSSVisitSMSResult = await connection.ExecuteAsync(insertSSVisitSMS, new
+                    {
+                        companyid = "001",
+                        mobileno = techMobile, // Mobile number can be fetched and added here
+                        techcode = techCode,
+                        serialno = serialNo,
+                        machinerefno = machineRefNo,
+                        meterreading = meterReadingValue,
+                        visitdate = GetSriLankanTime().Date,
+                        tstatus = jobStatus,
+                        confirmby = techCode,
+                        confirmdate = GetSriLankanTime().Date
+                    });
+
                     //Get the latest MeterReadingID for TBL_METER_READING table 
                     string getLastMRID = @"SELECT ISNULL(MAX(MR_ID), 0) FROM TBL_METER_READING"; 
                     int lastMRID = 0;
-                    var lastMRIDResult = connection.QuerySingleOrDefault<int>(getLastMRID);
+                    var lastMRIDResult = await connection.QuerySingleOrDefaultAsync<int>(getLastMRID);
                     int newmrId = lastMRIDResult + 1;
 
                     string insertMeterReadingQuery = @"
@@ -463,7 +489,7 @@ namespace ServvistaWebAppAPI.Services
                     VALUES 
                     (@serialno, @machinerefno, @techcode, @techname, @jobid, @solution, @jobstatus, @visitno)";
 
-                    var insertServiceVisitSolutionResult = connection.Execute(insertServiceVisitSolutionQuery, new
+                    var insertServiceVisitSolutionResult = await connection.ExecuteAsync(insertServiceVisitSolutionQuery, new
                     {
                         serialno = serialNo,
                         machinerefno = machineRefNo,
@@ -475,7 +501,7 @@ namespace ServvistaWebAppAPI.Services
                         visitno = visitNo
                     });
 
-                    var insertMeterReadingResult = connection.Execute(insertMeterReadingQuery, new
+                    var insertMeterReadingResult = await connection.ExecuteAsync(insertMeterReadingQuery, new
                     {
                         mrid = newmrId,
                         companyid = "001",
@@ -508,23 +534,9 @@ namespace ServvistaWebAppAPI.Services
                         servicesdocreciveddate = GetSriLankanTime().Date,
                         smsreciveddate = GetSriLankanTime().Date,
                         crby = techCode
-                    });
+                    });                   
 
-                    var insertSSVisitSMSResult = connection.Execute(insertSSVisitSMS, new
-                    {
-                        companyid = "001",
-                        mobileno = "", // Mobile number can be fetched and added here
-                        techcode = techCode,
-                        serialno = serialNo,
-                        machinerefno = machineRefNo,
-                        meterreading = meterReadingValue,
-                        visitdate = GetSriLankanTime().Date,
-                        tstatus = jobStatus,
-                        confirmby = techCode,
-                        confirmdate = GetSriLankanTime().Date
-                    });
-
-                    var updateServiceVisitResult = connection.Execute(updateQuery, new
+                    var updateServiceVisitResult = await connection.ExecuteAsync(updateQuery, new
                     {
                         visitdate = GetSriLankanTime().Date,                        
                         meterreading = meterReadingValue,
