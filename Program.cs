@@ -20,6 +20,10 @@ builder.Services.AddCors(options =>
     });
 });
 
+//Add signalr notifications 
+builder.Services.AddSignalR();
+builder.Services.AddHostedService<TechNotificationBackgroundService>(); 
+
 // Add token authentication 
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
@@ -63,6 +67,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.MapHub<NotificationHub>("/notificationhub");
 app.UseHttpsRedirection();
 app.UseCors();
 app.UseAuthentication(); 
