@@ -11,6 +11,16 @@
         public int jobId { get; set; } 
         public string? solution { get; set; }        
     }
+
+    public class ServiceVisitRecallModel
+    {
+        public int jobId { get; set; }
+        public DateTime date { get; set; } 
+        public string reason { get; set; }
+        public bool isRecall { get; set; } 
+        public bool onSite { get; set; }
+    }
+
     public class ServiceScheduleModel
     {
         public string machineRefNo { get; set; }

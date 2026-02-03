@@ -12,4 +12,11 @@
         public string CITY { get; set; } 
         public bool IS_ACTIVE { get; set; }
     }
+
+    public class LoginCustomerResponseModel
+    {
+        public string SERIAL_NO { get; set; }
+        public string MACHINE_REF_CODE { get; set; }
+        public string TOKEN { get; set; }        
+    }
 }

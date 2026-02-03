@@ -11,6 +11,7 @@
 
     public class ServiceVisitMonthlyInfo
     {
+        public string serialNo { get; set; }
         public string machineRefNo { get; set; }
         public string expectedVisitNo { get; set; }
         public DateTime expectedVisitDate { get; set; }
@@ -24,5 +25,6 @@
         public string machineLocation01 { get; set; }
         public string machineLocation02 { get; set; } 
         public string machineLocation03 { get; set; }   
+        public string techName { get; set; }
     }
 }
