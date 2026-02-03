@@ -38,7 +38,7 @@ namespace ServvistaWebAppAPI.Controllers
             {
                 return BadRequest(ex.Message); 
             }
-        }
+        }        
 
         //api/breakdown/getperformance
         [Authorize]

@@ -12,46 +12,78 @@ namespace ServvistaWebAppAPI.Controllers
     public class AuthController : ControllerBase
     {
         private readonly UserRepository _repo;
-        private readonly JwtTokenService _jwt; 
+        private readonly JwtTokenService _jwt;
 
         public AuthController(UserRepository repo, JwtTokenService jwt)
         {
-            _repo = repo; 
-            _jwt = jwt; 
+            _repo = repo;
+            _jwt = jwt;
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginModel request)
         {
-            var user = await _repo.GetByUserNameAsync(request.TECH_CODE);
+            // 1️⃣ Try machine login first
+            var machineTransaction =
+                await _repo.GetCustomerInfoBySerial(request.SERIAL_NO);
 
-            if (user == null || !user.IS_ACTIVE)
+            // 2️⃣ If machine not found, try tech login
+            var techInformation =
+                machineTransaction == null
+                    ? await _repo.GetByUserNameAsync(request.TECH_CODE)
+                    : null;
+
+            // 3️⃣ If neither exists → invalid credentials
+            if (machineTransaction == null && techInformation == null)
+            {
                 return Unauthorized("Invalid Credentials");
+            }
 
-            var hashed = PasswordHasher.Hash(request.Password);
+            string token;
+            DateTime expiresAt;
 
-            if (hashed != user.PASSWORD_HASH)
-                return Unauthorized("Invalid Credentials");
+            // ================= TECH LOGIN =================
+            if (techInformation != null)
+            {
+                var hashedPassword = PasswordHasher.Hash(request.Password);
 
-            var (token, expiresAt) = _jwt.GenerateToken(user.TECH_CODE);
+                if (hashedPassword != techInformation.PASSWORD_HASH)
+                {
+                    return Unauthorized("Invalid Credentials");
+                }
 
-            var refreshToken = new RefreshToken { 
-                Token = _jwt.GenerateRefreshToken(),
-                UserId = user.TECH_CODE,
-                Expires = DateTime.UtcNow.AddDays(7),
-                Created = DateTime.UtcNow,                 
-            };
+                if (!techInformation.IS_ACTIVE)
+                {
+                    return Unauthorized("User is Inactive");
+                }
 
-            return Ok(new LoginResponseModel { 
-                TOKEN = token, 
-                TECH_CODE = user.TECH_CODE,
-                TECH_NAME = user.TECH_NAME,
-                AREA = user.AREA, 
-                CITY = user.CITY, 
-                EMAIL = user.EMAIL,
-                IS_ACTIVE = user.IS_ACTIVE,
-                MOBILE_NO = user.MOBILE_NO,
+                (token, expiresAt) =
+                    _jwt.GenerateToken(techInformation.TECH_CODE);
+
+                return Ok(new LoginResponseModel
+                {
+                    TOKEN = token,
+                    TECH_CODE = techInformation.TECH_CODE,
+                    TECH_NAME = techInformation.TECH_NAME,
+                    AREA = techInformation.AREA,
+                    CITY = techInformation.CITY,
+                    EMAIL = techInformation.EMAIL,
+                    IS_ACTIVE = techInformation.IS_ACTIVE,
+                    MOBILE_NO = techInformation.MOBILE_NO
+                });
+            }
+
+            // ================= MACHINE LOGIN =================
+            (token, expiresAt) =
+                _jwt.GenerateCustomerToken(machineTransaction.SERIAL_NO);
+
+            return Ok(new LoginCustomerResponseModel
+            {
+                TOKEN = token,
+                SERIAL_NO = machineTransaction.SERIAL_NO,
+                MACHINE_REF_CODE = machineTransaction.MACHINE_REF_CODE
             });
         }
+
     }
 }

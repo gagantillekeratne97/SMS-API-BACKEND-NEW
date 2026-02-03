@@ -141,7 +141,7 @@ namespace ServvistaWebAppAPI.Services
                 DateTime startOfThisMonth = new DateTime(todayDate.Year, todayDate.Month, 1);
 
                 string query = @"
-            SELECT
+                SELECT
                 s.T_ID           AS rowId,
                 s.CUS_ID         AS customerID,
                 c.CUS_NAME       AS customerName,    
@@ -151,6 +151,8 @@ namespace ServvistaWebAppAPI.Services
                 s.M_LOC2         AS machineLocation02, 
                 s.M_LOC3         AS machineLocation03, 
                 s.MACHINE_REF    AS machineRefNo,
+                s.TECH_NAME      AS techName,
+                s.SERIAL_NO      AS serialNo,
                 v.VisitNo        AS expectedVisitNo,
                 CONVERT(char(10), v.ExpectedDate, 120) AS expectedVisitDate,
                 CASE 
@@ -236,6 +238,25 @@ namespace ServvistaWebAppAPI.Services
             }
 
             return servicesdateduevisits;
+        }
+
+        //Update service visit recall function 
+        public async Task UpdateServiceVisitRecall(ServiceVisitRecallModel serviceVisitRecallModel)
+        {
+            string jobStatus = "";
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                await connection.OpenAsync();
+                bool IsOnSite = serviceVisitRecallModel.onSite;
+                if (IsOnSite)
+                {
+                    jobStatus = "started";
+                }
+                else
+                {
+                    jobStatus = "pending";
+                }                
+            }
         }
 
         //Get the previous visits for a machine ref 
