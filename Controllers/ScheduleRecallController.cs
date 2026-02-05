@@ -71,7 +71,7 @@ namespace ServvistaWebAppAPI.Controllers
 
                         string updateScheduleVisitQuery = $@"
                         UPDATE TBL_SERVICE_SCEDULE_UPDATE 
-                        SET SV{visitNo} = @visitDate, SV{visitNo}_STATUS = @visitStatus, SV{visitNo}_SMS = @visitDate
+                        SET EXPT_SV{visitNo} = @visitDate, SV{visitNo}_STATUS = @visitStatus, SV{visitNo}_SMS = @visitDate
                         WHERE T_ID = @rowid";
 
                         var scheduleVisitResult = connection.Execute(updateScheduleVisitQuery, new

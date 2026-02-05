@@ -46,61 +46,161 @@ namespace ServvistaWebAppAPI.Controllers
         {
             try
             {
-                int jobID = int.Parse(model.jobId);
                 string customerReview = model.feedback;
-                string customerName = model.customerName; 
+                string customerName = model.customerName;
                 string customerMobileNo = model.mobileNo;
                 int feedbackCount = model.feedbackCount;
-                string serialNo = ""; 
-                string machineRefNo = "";
-                bool IsJobExists = false;
+                int jobID = 0;
+                int scheduleRowID = 0;
+                bool isService = false;
+                string type = "";
 
-                using (SqlConnection connection = new SqlConnection(_connectionString))
+                if (model.jobId != "")
                 {
-                    connection.Open();
-                    string checkJobExistsQuery = @"
-                    IF EXISTS (
-                        SELECT 1
-                        FROM TBL_DAILY_JOBS
-                        WHERE DJ_ID = @jobID
-                    )
-                        SELECT CAST(1 AS BIT) AS IsExists;
-                    ELSE
-                        SELECT CAST(0 AS BIT) AS IsExists;
-                    ";
+                    jobID = int.Parse(model.jobId);
+                    isService = false;
+                    type = "job visit";
+                }
+                else if (model.rowId != "")
+                {
+                    scheduleRowID = int.Parse(model.rowId);
+                    isService = true;
+                    type = "service visit";
+                }
+                else
+                {
+                    return BadRequest("Invalid Request Data.");
+                }
 
-                    IsJobExists = connection.QuerySingle<bool>(checkJobExistsQuery, new { jobID = jobID });
-                    if (IsJobExists)
+                if (isService == true)
+                {
+                    //Check if the row id exists in the service schedule table
+                    using (SqlConnection connection = new SqlConnection(_connectionString))
                     {
-                        //If the job exists, get the serial number and machine reference number
+                        connection.Open();
+                        bool isRowExists = false;
+                        string checkJobExistsQuery = @"
+                        IF EXISTS (
+                            SELECT 1
+                            FROM TBL_SERVICE_SCEDULE_UPDATE
+                            WHERE T_ID = @rowID                            
+                        )
+                            SELECT CAST(1 AS BIT) AS IsExists;
+                        ELSE
+                            SELECT CAST(0 AS BIT) AS IsExists;
+                        ";
+
+                        isRowExists = connection.QuerySingle<bool>(checkJobExistsQuery, new { rowID = scheduleRowID });
+
+                        if (isRowExists == false)
+                        {
+                            return NotFound("Schedule Visit Not Found.");
+                        }
+
+                        //If the service exists, get the serial number and machine reference number
+                        string serialNo = "";
+                        string machineRefNo = "";
+
                         string getJobDetailsQuery = @"
+                        SELECT SERIAL_NO, MACHINE_REF
+                        FROM TBL_SERVICE_SCEDULE_UPDATE
+                        WHERE T_ID = @rowid";
+                        var serviceDetails = connection.QuerySingleOrDefault(getJobDetailsQuery, new { rowid = scheduleRowID });
+                        if (serviceDetails != null)
+                        {
+                            serialNo = serviceDetails.SERIAL_NO;
+                            machineRefNo = serviceDetails.MACHINE_REF;
+                        }
+
+                        string insertFeedbackQuery = @"
+                        INSERT INTO TBL_SV_CUSTOMER_JOB_FEEDBACKS
+                        (COM_ID, FB_DATE, MOBILE_NO, CUS_CODE, CUS_NAME, RATING, FULL_MSG, SERIAL_NO, MACHINE_REF_NO, JOB_ID, CUSTOMER_REVIEW, TYPE) 
+                        VALUES 
+                        ('001', @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview, @type)";
+                        var customerFeedInsertResult = connection.Execute(insertFeedbackQuery, new
+                        {
+                            feedbackDate = GetSriLankanTime(),
+                            mobileNo = customerMobileNo,
+                            customerName = customerName,
+                            rating = feedbackCount,
+                            fullmsg = customerReview,
+                            serialNo = serialNo,
+                            machineRefNo = machineRefNo,
+                            jobid = scheduleRowID,
+                            customerreview = customerReview,
+                            type = type
+                        });
+                        if (customerFeedInsertResult <= 0)
+                            return BadRequest("Something Went Wrong please contact IT.");
+
+                        return Ok("Visit Feedback is updated Successfully. Your Feedback is highly Appreciated.");
+                    }
+                }
+                else
+                {
+                    string serialNo = "";
+                    string machineRefNo = "";
+                    bool IsJobExists = false;
+
+
+                    using (SqlConnection connection = new SqlConnection(_connectionString))
+                    {
+                        connection.Open();
+                        string checkJobExistsQuery = @"
+                        IF EXISTS (
+                            SELECT 1
+                            FROM TBL_DAILY_JOBS
+                            WHERE DJ_ID = @jobID
+                        )
+                            SELECT CAST(1 AS BIT) AS IsExists;
+                        ELSE
+                            SELECT CAST(0 AS BIT) AS IsExists;
+                        ";
+
+                        IsJobExists = connection.QuerySingle<bool>(checkJobExistsQuery, new { jobID = jobID });
+                        if (IsJobExists)
+                        {
+                            //If the job exists, get the serial number and machine reference number
+                            string getJobDetailsQuery = @"
                         SELECT SERIAL_NO, MACHINE_REF_NO
                         FROM TBL_DAILY_JOBS
                         WHERE DJ_ID = @jobid";
-                        var jobDetails = connection.QuerySingleOrDefault(getJobDetailsQuery, new { jobid = jobID });
-                        if (jobDetails != null)
-                        {
-                            serialNo = jobDetails.SERIAL_NO;
-                            machineRefNo = jobDetails.MACHINE_REF_NO;
-                        }
+                            var jobDetails = connection.QuerySingleOrDefault(getJobDetailsQuery, new { jobid = jobID });
+                            if (jobDetails != null)
+                            {
+                                serialNo = jobDetails.SERIAL_NO;
+                                machineRefNo = jobDetails.MACHINE_REF_NO;
+                            }
 
-                        //Insert the customer feedback into the TBL_CUSTOMER_FEEDBACK table
-                        string insertFeedbackQuery = @"
+                            //Insert the customer feedback into the TBL_CUSTOMER_FEEDBACK table
+                            string insertFeedbackQuery = @"
                         INSERT INTO TBL_SV_CUSTOMER_JOB_FEEDBACKS
-                        (COM_ID, FB_DATE, MOBILE_NO, CUS_CODE, CUS_NAME, RATING, FULL_MSG, SERIAL_NO, MACHINE_REF_NO, JOB_ID, CUSTOMER_REVIEW) 
+                        (COM_ID, FB_DATE, MOBILE_NO, CUS_CODE, CUS_NAME, RATING, FULL_MSG, SERIAL_NO, MACHINE_REF_NO, JOB_ID, CUSTOMER_REVIEW, TYPE) 
                         VALUES 
-                        ('001', @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview)";
-                        var customerFeedInsertResult = connection.Execute(insertFeedbackQuery, new { feedbackDate = GetSriLankanTime(), mobileNo = customerMobileNo, customerName = customerName, 
-                        rating = feedbackCount, fullmsg = customerReview, serialNo = serialNo, machineRefNo = machineRefNo, jobid = jobID, customerreview = customerReview});
-                        if (customerFeedInsertResult <= 0)
-                            return BadRequest("Something Went Wrong please contact IT.");
+                        ('001', @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview, @type)";
+                            var customerFeedInsertResult = connection.Execute(insertFeedbackQuery, new
+                            {
+                                feedbackDate = GetSriLankanTime(),
+                                mobileNo = customerMobileNo,
+                                customerName = customerName,
+                                rating = feedbackCount,
+                                fullmsg = customerReview,
+                                serialNo = serialNo,
+                                machineRefNo = machineRefNo,
+                                jobid = jobID,
+                                customerreview = customerReview,
+                                type = type
+                            });
+                            if (customerFeedInsertResult <= 0)
+                                return BadRequest("Something Went Wrong please contact IT.");
+                        }
+                        else
+                        {
+                            return NotFound($"No Job found for this Reference ID : {jobID}");
+                        }
                     }
-                    else
-                    {
-                        return NotFound($"No Job found for this Reference ID : {jobID}");
-                    }
-                }
-                return Ok("Your Feedback is Saved and We Highly Appreciated. Thank you.");
+                    return Ok("Your Feedback is Saved and We Highly Appreciated. Thank you.");
+                }                
             }
             catch (Exception ex)
             {
@@ -108,8 +208,7 @@ namespace ServvistaWebAppAPI.Controllers
             }
         }
 
-        //GET : api/customerfeedback/getJobsWithSerial?serialNo=12345
-        [Authorize]
+        //GET : api/customerfeedback/getJobsWithSerial?serialNo=12345        
         [HttpGet("getJobsWithSerial")]
         public IActionResult GetJobsWithSerial(string serialNo, int jobID) 
         {

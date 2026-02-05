@@ -210,6 +210,7 @@ namespace ServvistaWebAppAPI.Services
                     s.M_LOC2         AS machineLocation02, 
                     s.M_LOC3         AS machineLocation03, 
                     s.MACHINE_REF    AS machineRefNo,
+                    s.SERIAL_NO      AS serialNo,
                     v.VisitNo        AS expectedVisitNo,
                     CONVERT(char(10), v.ExpectedDate, 120) AS expectedVisitDate
                 FROM TBL_SERVICE_SCEDULE_UPDATE s
@@ -677,6 +678,7 @@ namespace ServvistaWebAppAPI.Services
                     s.M_LOC2      AS machineLocation02, 
                     s.M_LOC3      AS machineLocation03, 
                     s.MACHINE_REF AS machineRefNo,
+                    s.SERIAL_NO   AS serialNo,
                     v.VisitNo     AS expectedVisitNo,
                     CONVERT(char(10), v.ExpectedDate, 120) AS expectedVisitDate,
                     v.VisitStatus AS VisitStatus
