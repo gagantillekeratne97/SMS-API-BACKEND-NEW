@@ -12,5 +12,7 @@
         public string customerName { get; set; }
         //Daily job Job id
         public string jobId { get; set; }
+        //Schedule Row ID 
+        public string rowId { get; set; }
     }
 }

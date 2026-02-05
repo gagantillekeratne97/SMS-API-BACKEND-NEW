@@ -14,12 +14,16 @@ namespace ServvistaWebAppAPI.Classes
             _config = config; 
         }
 
-        public string GenerateRefreshToken()
+        public RefreshToken GenerateRefreshToken(string techCode)
         {
-            var bytes = new byte[64];
-            using var rng = RandomNumberGenerator.Create();
-            rng.GetBytes(bytes);
-            return Convert.ToBase64String(bytes);
+            var randomBytes = RandomNumberGenerator.GetBytes(64); 
+            return new RefreshToken
+            {
+                Token = Convert.ToBase64String(randomBytes),
+                Expires = DateTime.UtcNow.AddDays(int.Parse(_config["Jwt:RefreshTokenDurationInDays"])),
+                IsRevoked = false,
+                TechCode = techCode
+            };
         }
 
         public (string token, DateTime expirationAt) GenerateCustomerToken(string serialNo)

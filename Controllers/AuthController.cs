@@ -1,8 +1,10 @@
-﻿using Microsoft.AspNetCore.Cors;
+﻿using Dapper;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ServvistaWebAppAPI.Classes;
 using ServvistaWebAppAPI.Models;
+using System.Data.SqlClient;
 
 namespace ServvistaWebAppAPI.Controllers
 {
@@ -13,12 +15,15 @@ namespace ServvistaWebAppAPI.Controllers
     {
         private readonly UserRepository _repo;
         private readonly JwtTokenService _jwt;
+        private readonly string _connectionString;
+        private readonly IConfiguration _config; 
 
         public AuthController(UserRepository repo, JwtTokenService jwt)
         {
+            _connectionString = _config.GetConnectionString("DefaultConnection");
             _repo = repo;
             _jwt = jwt;
-        }
+        }        
 
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginModel request)
@@ -60,9 +65,12 @@ namespace ServvistaWebAppAPI.Controllers
                 (token, expiresAt) =
                     _jwt.GenerateToken(techInformation.TECH_CODE);
 
+                var refreshToken = _jwt.GenerateRefreshToken(techInformation.TECH_CODE).Token;                
+
                 return Ok(new LoginResponseModel
                 {
                     TOKEN = token,
+                    REFRESH_TOKEN = refreshToken,
                     TECH_CODE = techInformation.TECH_CODE,
                     TECH_NAME = techInformation.TECH_NAME,
                     AREA = techInformation.AREA,

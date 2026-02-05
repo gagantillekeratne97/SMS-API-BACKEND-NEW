@@ -22,7 +22,7 @@ builder.Services.AddCors(options =>
 
 //Add signalr notifications 
 builder.Services.AddSignalR();
-builder.Services.AddHostedService<TechNotificationBackgroundService>(); 
+//builder.Services.AddHostedService<TechNotificationBackgroundService>(); 
 
 // Add token authentication 
 builder.Services.AddAuthorization();
