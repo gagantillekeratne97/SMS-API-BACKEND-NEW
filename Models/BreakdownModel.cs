@@ -15,6 +15,7 @@
         public string TEAM_NAME { get; set; }
         public DateTime DJ_DATE { get; set; }
         public string TECH_CODE { get; set; } 
+        public string TECH_NAME { get; set; }
         public string TECH_MOBILE { get;set; }
         public string MACHINE_MODEL_ID { get; set; }
         public string MACHINE_MODEL_NAME { get; set; }

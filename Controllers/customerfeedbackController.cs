@@ -5,6 +5,7 @@ using System.Data.SqlClient;
 using Dapper;
 using ServvistaWebAppAPI.Models;
 using ServvistaWebAppAPI.Classes;
+using System.Diagnostics.Eventing.Reader;
 
 namespace ServvistaWebAppAPI.Controllers
 {
@@ -39,6 +40,74 @@ namespace ServvistaWebAppAPI.Controllers
             throw new Exception("Sri Lankan timezone not found in this system.");
         }
 
+        //POST : api/customerfeedback/addCustomerReview
+        [HttpPost("addCustomerReview")]
+        public IActionResult AddCustomerReview([FromBody] customerFeedbackRequestModel model)
+        {
+            try
+            {
+                int jobID = int.Parse(model.jobId);
+                string customerReview = model.feedback;
+                string customerName = model.customerName; 
+                string customerMobileNo = model.mobileNo;
+                int feedbackCount = model.feedbackCount;
+                string serialNo = ""; 
+                string machineRefNo = "";
+                bool IsJobExists = false;
+
+                using (SqlConnection connection = new SqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    string checkJobExistsQuery = @"
+                    IF EXISTS (
+                        SELECT 1
+                        FROM TBL_DAILY_JOBS
+                        WHERE DJ_ID = @jobID
+                    )
+                        SELECT CAST(1 AS BIT) AS IsExists;
+                    ELSE
+                        SELECT CAST(0 AS BIT) AS IsExists;
+                    ";
+
+                    IsJobExists = connection.QuerySingle<bool>(checkJobExistsQuery, new { jobID = jobID });
+                    if (IsJobExists)
+                    {
+                        //If the job exists, get the serial number and machine reference number
+                        string getJobDetailsQuery = @"
+                        SELECT SERIAL_NO, MACHINE_REF_NO
+                        FROM TBL_DAILY_JOBS
+                        WHERE DJ_ID = @jobid";
+                        var jobDetails = connection.QuerySingleOrDefault(getJobDetailsQuery, new { jobid = jobID });
+                        if (jobDetails != null)
+                        {
+                            serialNo = jobDetails.SERIAL_NO;
+                            machineRefNo = jobDetails.MACHINE_REF_NO;
+                        }
+
+                        //Insert the customer feedback into the TBL_CUSTOMER_FEEDBACK table
+                        string insertFeedbackQuery = @"
+                        INSERT INTO TBL_SV_CUSTOMER_JOB_FEEDBACKS
+                        (COM_ID, FB_DATE, MOBILE_NO, CUS_CODE, CUS_NAME, RATING, FULL_MSG, SERIAL_NO, MACHINE_REF_NO, JOB_ID, CUSTOMER_REVIEW) 
+                        VALUES 
+                        ('001', @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview)";
+                        var customerFeedInsertResult = connection.Execute(insertFeedbackQuery, new { feedbackDate = GetSriLankanTime(), mobileNo = customerMobileNo, customerName = customerName, 
+                        rating = feedbackCount, fullmsg = customerReview, serialNo = serialNo, machineRefNo = machineRefNo, jobid = jobID, customerreview = customerReview});
+                        if (customerFeedInsertResult <= 0)
+                            return BadRequest("Something Went Wrong please contact IT.");
+                    }
+                    else
+                    {
+                        return NotFound($"No Job found for this Reference ID : {jobID}");
+                    }
+                }
+                return Ok("Your Feedback is Saved and We Highly Appreciated. Thank you.");
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         //GET : api/customerfeedback/getJobsWithSerial?serialNo=12345
         [Authorize]
         [HttpGet("getJobsWithSerial")]
@@ -67,10 +136,33 @@ namespace ServvistaWebAppAPI.Controllers
                     {
                         connection.Open();
                         string query = @"
-                        SELECT DJ_ID, DJ_DATE, SERIAL_NO, MACHINE_REF_NO, 
-                        CUS_NAME, CUS_ADD1, CUS_ADD2, CUS_ADD3, CUS_CONTACT, 
-                        CUS_TEL_NO, TEAM_ID, TEAM_NAME, TECH_CODE, TECH_MOBILE, MACHINE_MODEL_ID, MACHINE_MODEL_NAME, CUS_STATUS, NOTE, JOB_STATUS
-                        FROM TBL_DAILY_JOBS WHERE SERIAL_NO = @serialno AND DJ_ID = @jobid";
+                        SELECT  
+                        dj.DJ_ID,
+                        dj.DJ_DATE,
+                        dj.SERIAL_NO,
+                        dj.MACHINE_REF_NO,
+                        dj.CUS_NAME,
+                        dj.CUS_ADD1,
+                        dj.CUS_ADD2,
+                        dj.CUS_ADD3,
+                        dj.CUS_CONTACT,
+                        dj.CUS_TEL_NO,
+                        dj.TEAM_ID,
+                        dj.TEAM_NAME,
+                        dj.TECH_CODE,
+                        toff.TECH_NAME,
+                        dj.TECH_MOBILE,
+                        dj.MACHINE_MODEL_ID,
+                        dj.MACHINE_MODEL_NAME,
+                        dj.CUS_STATUS,
+                        dj.NOTE,
+                        dj.JOB_STATUS
+                        FROM TBL_DAILY_JOBS dj
+                        INNER JOIN MTBL_TECH_OFFICERS toff
+                            ON dj.TECH_CODE = toff.TECH_CODE
+                        WHERE dj.SERIAL_NO = @serialno
+                          AND dj.DJ_ID = @jobid;
+                        ";
 
                         var result = connection.QuerySingleOrDefault<BreakdownModel>(query, new { serialno = serialNo, jobid = jobID });
 
@@ -235,14 +327,38 @@ namespace ServvistaWebAppAPI.Controllers
                     }
 
                     string query = @"
-                    SELECT DJ_ID, DJ_DATE, SERIAL_NO, MACHINE_REF_NO, 
-                    CUS_NAME, CUS_ADD1, CUS_ADD2, CUS_ADD3, CUS_CONTACT, 
-                    CUS_TEL_NO, TEAM_ID, TEAM_NAME, TECH_CODE, TECH_MOBILE, MACHINE_MODEL_ID, MACHINE_MODEL_NAME, CUS_STATUS, NOTE, JOB_STATUS
-                    FROM TBL_DAILY_JOBS WHERE SERIAL_NO = @serialno AND DJ_DATE >= @lastyearfirstday AND DJ_DATE <= @lastyearlastday";
+                    SELECT  
+                    dj.DJ_ID,
+                    dj.DJ_DATE,
+                    dj.SERIAL_NO,
+                    dj.MACHINE_REF_NO,
+                    dj.CUS_NAME,
+                    dj.CUS_ADD1,
+                    dj.CUS_ADD2,
+                    dj.CUS_ADD3,
+                    dj.CUS_CONTACT,
+                    dj.CUS_TEL_NO,
+                    dj.TEAM_ID,
+                    dj.TEAM_NAME,
+                    dj.TECH_CODE,
+                    toff.TECH_NAME,
+                    dj.TECH_MOBILE,
+                    dj.MACHINE_MODEL_ID,
+                    dj.MACHINE_MODEL_NAME,
+                    dj.CUS_STATUS,
+                    dj.NOTE,
+                    dj.JOB_STATUS
+                    FROM TBL_DAILY_JOBS dj
+                    INNER JOIN MTBL_TECH_OFFICERS toff
+                        ON dj.TECH_CODE = toff.TECH_CODE
+                    WHERE dj.SERIAL_NO = @serialno
+                      AND dj.DJ_DATE >= @lastyearfirstday
+                      AND dj.DJ_DATE <= @lastyearlastday;
+                    ";
 
                     var firstDayLastYear = new DateTime(GetSriLankanTime().Year - 1, 1, 1);
                     var lastDayLastYear = new DateTime(GetSriLankanTime().Year - 1, 12, 31);
-                    var result = connection.Query<BreakdownModel>(query, new { lastyearfirstday = firstDayLastYear, lastyearlastday = lastDayLastYear}).ToList();
+                    var result = connection.Query<BreakdownModel>(query, new { lastyearfirstday = firstDayLastYear, lastyearlastday = lastDayLastYear, serialno = serialNo}).ToList();
                     return Ok(result);
                 }
             }
