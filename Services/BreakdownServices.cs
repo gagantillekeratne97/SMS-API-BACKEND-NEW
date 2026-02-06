@@ -44,7 +44,7 @@ namespace ServvistaWebAppAPI.Services
                 CUS_SMS_NO AS CUS_TEL_NO, TEAM_ID, TEAM_NAME, DJ_DATE, TECH_CODE, TECH_MOBILE, MACHINE_MODEL_ID, MACHINE_MODEL_NAME, CUS_STATUS,
                 JOB_STATUS AS JOB_STATUS, NOTE AS NOTE
                 FROM TBL_DAILY_JOBS 
-                WHERE TECH_CODE = @techcode AND DJ_DATE >= @assigneddate AND DJ_DATE <= @dayafterassigneddate";
+                WHERE TECH_CODE = @techcode AND DJ_DATE >= @assigneddate AND DJ_DATE <= @dayafterassigneddate AND JOB_STATUS <> 'CANCELLED'";
 
                 DateTime assignedDate = GetSriLankanTime().Date;
                 DateTime dayafterassignedDate = GetSriLankanTime().AddDays(1).Date;
@@ -120,7 +120,8 @@ namespace ServvistaWebAppAPI.Services
                 FROM TBL_DAILY_JOBS 
                 WHERE TECH_CODE = @techcode 
                 AND DJ_DATE >= @startoflastmonth
-                AND DJ_DATE <= @startofthismonth"; 
+                AND DJ_DATE <= @startofthismonth
+                AND JOB_STATUS <> 'CANCELLED'"; 
                 var breakdowns = await connection.QueryAsync<BreakdownModel>(query, new
                 {
                     techcode = techCode,
