@@ -15,7 +15,7 @@ namespace ServvistaWebAppAPI.Controllers
     {
         private readonly UserRepository _repo;
         private readonly JwtTokenService _jwt;
-        private readonly string _connectionString;
+        public string _connectionString;
         private readonly IConfiguration _config; 
 
         public AuthController(UserRepository repo, JwtTokenService jwt)
@@ -23,7 +23,38 @@ namespace ServvistaWebAppAPI.Controllers
             _connectionString = _config.GetConnectionString("DefaultConnection");
             _repo = repo;
             _jwt = jwt;
-        }        
+        }    
+
+        [HttpPost("resetPassword")]
+        public IActionResult ResetPassword(string techCode, [FromBody] string newPassword)
+        {
+            try
+            {
+                string connectionString = @"Data Source=sql5079.site4now.net;Initial Catalog=DB_A67CC4_Servvistagcp;User ID=DB_A67CC4_Servvistagcp_admin;Password=Ssg789.541351;";
+                var hashedPassword = PasswordHasher.Hash(newPassword);
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+                    string query = @"
+                    UPDATE MTBL_TECH_OFFICERS 
+                    SET PASSWORD_HASH = @hashedPassword 
+                    WHERE TECH_CODE = @techCode";
+                    int rowsAffected = connection.Execute(query, new { hashedPassword, techCode });
+                    if (rowsAffected > 0)
+                    {
+                        return Ok("Password reset successful.");
+                    }
+                    else
+                    {
+                        return NotFound("Technician not found.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login(LoginModel request)

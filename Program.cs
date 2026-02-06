@@ -69,7 +69,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapHub<NotificationHub>("/notificationhub");
 app.UseHttpsRedirection();
-app.UseCors();
+app.UseCors("AllowOrigin");
 app.UseAuthentication(); 
 app.UseAuthorization();
 
