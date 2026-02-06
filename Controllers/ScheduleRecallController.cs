@@ -63,11 +63,11 @@ namespace ServvistaWebAppAPI.Controllers
                             isRecall = isRecall
                         });
 
-                        string updateScheduleQuery = @"
-                        UPDATE TBL_SERVICE_SCEDULE_UPDATE 
-                        SET IS_ACTIVE = '1', RECALL_ID = @recallID
-                        WHERE T_ID = @rowID";
-                        var recallResult = connection.Execute(updateScheduleQuery, new { recallID = recallID, rowID = rowID});
+                        //string updateScheduleQuery = @"
+                        //UPDATE TBL_SERVICE_SCEDULE_UPDATE 
+                        //SET IS_ACTIVE = '1', RECALL_ID = @recallID
+                        //WHERE T_ID = @rowID";
+                        //var recallResult = connection.Execute(updateScheduleQuery, new { recallID = recallID, rowID = rowID});
 
                         string updateScheduleVisitQuery = $@"
                         UPDATE TBL_SERVICE_SCEDULE_UPDATE 

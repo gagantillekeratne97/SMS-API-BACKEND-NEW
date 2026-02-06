@@ -38,7 +38,7 @@ namespace ServvistaWebAppAPI.Controllers
                     connection.Open();
                     string query = @"
                     SELECT * FROM TBL_DAILY_JOBS 
-                    WHERE TECH_CODE = @techcode AND DJ_DATE >= @firstdayoflastyear AND DJ_DATE <= @lastoflastyear";
+                    WHERE TECH_CODE = @techcode AND DJ_DATE >= @firstdayoflastyear AND DJ_DATE <= @lastoflastyear AND JOB_STATUS = 'TECH ALLOCATED'";
                     var result = connection.Query<BreakdownModel>(query, new { techcode = techCode, firstdayoflastyear = firstDayOfLastYear, lastoflastyear = lastDayOfLastYear});
                     return Ok(result);
                 }                
