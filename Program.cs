@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using ServvistaWebAppAPI.Classes;
 using ServvistaWebAppAPI.Services;
@@ -7,72 +7,108 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-
-//Adding cors origin 
+// --------------------
+// CORS (React + SignalR)
+// --------------------
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowOrigin", policy =>
     {
-        policy.AllowAnyOrigin()
-        .AllowAnyHeader()
-        .AllowAnyMethod();
+        policy
+            .WithOrigins("http://localhost:5173") // Vite dev server
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
-//Add signalr notifications 
+// --------------------
+// SignalR
+// --------------------
 builder.Services.AddSignalR();
-//builder.Services.AddHostedService<TechNotificationBackgroundService>(); 
+builder.Services.AddHostedService<TechNotificationBackgroundService>();
 
-// Add token authentication 
-builder.Services.AddAuthorization();
+// --------------------
+// Controllers & Services
+// --------------------
 builder.Services.AddControllers();
 
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<JwtTokenService>();
-
-// Registering Services to Application
 builder.Services.AddScoped<ITechnicianPerformanceService, TechnicianPerformanceService>();
 builder.Services.AddScoped<IBreakdownServices, BreakdownServices>();
 builder.Services.AddScoped<IServiceSchedule, ServiceScheduleService>();
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+// --------------------
+// Authentication (JWT + SignalR)
+// --------------------
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        ValidateIssuer = true, 
-        ValidateAudience = true, 
-        ValidateLifetime = true, 
-        ValidateIssuerSigningKey = true, 
-        ValidIssuer = builder.Configuration["Jwt:Issuer"], 
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])
-        ), 
-        
-        NameClaimType = ClaimTypes.Name
-    };
-});
+            ),
+            NameClaimType = ClaimTypes.Name
+        };
 
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+        // 🔥 REQUIRED for SignalR over WebSockets
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) &&
+                    path.StartsWithSegments("/notificationhub"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+// --------------------
+// Swagger
+// --------------------
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// --------------------
+// Middleware pipeline (ORDER MATTERS)
+// --------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.MapHub<NotificationHub>("/notificationhub");
 app.UseHttpsRedirection();
-app.UseCors("AllowOrigin");
-app.UseAuthentication(); 
+
+app.UseRouting();               // ✅ REQUIRED
+app.UseCors("AllowOrigin");     // ✅ BEFORE auth
+
+app.UseAuthentication();
 app.UseAuthorization();
 
+// --------------------
+// Endpoints
+// --------------------
+app.MapHub<NotificationHub>("/notificationhub");
 app.MapControllers();
 
 app.Run();

@@ -58,17 +58,36 @@ namespace ServvistaWebAppAPI.Services
                 CUS_SMS_NO, 
                 MACHINE_MODEL_ID, 
                 MACHINE_MODEL_NAME, 
-                CUS_STATUS, 
+                CUS_STATUS,       
+                TECH_CODE,
                 IS_TECH_NOTIFIED
                 FROM TBL_DAILY_JOBS
                 WHERE IS_TECH_NOTIFIED = '0'
                 ";
 
-                var result = await connection.QueryAsync<BreakdownModel>(query);
-                foreach (var item in result.ToList())
+                var jobs = (await connection.QueryAsync<BreakdownModel>(query)).ToList();
+                var sentJobIds = new List<string>();
+
+                foreach (var item in jobs)
                 {
-                    await _hubContext.Clients.All.SendAsync("ReceivingNotifications", item, cancellationToken: token);
+                    if (!string.IsNullOrWhiteSpace(item.TECH_CODE))
+                    {
+                        await _hubContext.Clients
+                            .Group(item.TECH_CODE.Trim())
+                            .SendAsync("ReceivingNotifications", item, cancellationToken: token);
+
+                        sentJobIds.Add(item.DJ_ID);
+                    }
                 }
+
+                if (!sentJobIds.Any())
+                    return;
+
+                await connection.ExecuteAsync(
+                    "UPDATE TBL_DAILY_JOBS SET IS_TECH_NOTIFIED = '1' WHERE DJ_ID IN @Ids",
+                    new { Ids = sentJobIds.Distinct().ToList() }
+                );
+
             }
         }
     }
