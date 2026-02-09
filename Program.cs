@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using ServvistaWebAppAPI.Classes;
 using ServvistaWebAppAPI.Services;
@@ -8,6 +9,25 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // --------------------
+// Configure Kestrel for Railway
+// --------------------
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+    serverOptions.ListenAnyIP(int.Parse(port));
+});
+
+// --------------------
+// Configure Forwarded Headers (Railway proxy)
+// --------------------
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+// --------------------
 // CORS (React + SignalR)
 // --------------------
 builder.Services.AddCors(options =>
@@ -15,7 +35,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowOrigin", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173", "https://gestetner-service-schedule-4cse.vercel.app/") // Vite dev server //Changes done here
+            .WithOrigins(
+                "http://localhost:5173",
+                "https://gestetner-service-schedule-4cse.vercel.app" // Removed trailing slash
+            )
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
@@ -32,7 +55,6 @@ builder.Services.AddHostedService<TechNotificationBackgroundService>();
 // Controllers & Services
 // --------------------
 builder.Services.AddControllers();
-
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<ITechnicianPerformanceService, TechnicianPerformanceService>();
@@ -66,13 +88,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
-
                 if (!string.IsNullOrEmpty(accessToken) &&
                     path.StartsWithSegments("/notificationhub"))
                 {
                     context.Token = accessToken;
                 }
-
                 return Task.CompletedTask;
             }
         };
@@ -91,17 +111,21 @@ var app = builder.Build();
 // --------------------
 // Middleware pipeline (ORDER MATTERS)
 // --------------------
+
+// ✅ Use forwarded headers FIRST (for Railway's proxy)
+app.UseForwardedHeaders();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// ❌ REMOVE HTTPS redirection for Railway
+// app.UseHttpsRedirection();
 
 app.UseRouting();               // ✅ REQUIRED
 app.UseCors("AllowOrigin");     // ✅ BEFORE auth
-
 app.UseAuthentication();
 app.UseAuthorization();
 
