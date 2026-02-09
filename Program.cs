@@ -12,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 // --------------------
 builder.Services.AddCors(options =>
 {
+    //this is something
     options.AddPolicy("AllowOrigin", policy =>
     {
         policy
