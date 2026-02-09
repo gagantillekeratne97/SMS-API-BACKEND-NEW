@@ -15,7 +15,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowOrigin", policy =>
     {
         policy
-            .WithOrigins("http://localhost:5173", "https://gestetner-service-schedule-4cse.vercel.app/") // Vite dev server
+            .WithOrigins("http://localhost:5173", "https://gestetner-service-schedule-4cse.vercel.app/") // Vite dev server //Changes done here
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
