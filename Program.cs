@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using ServvistaWebAppAPI.Classes;
 using ServvistaWebAppAPI.Services;
@@ -7,25 +6,6 @@ using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-
-// --------------------
-// Configure Kestrel for Railway
-// --------------------
-builder.WebHost.ConfigureKestrel(serverOptions =>
-{
-    var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-    serverOptions.ListenAnyIP(int.Parse(port));
-});
-
-// --------------------
-// Configure Forwarded Headers (Railway proxy)
-// --------------------
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
-});
 
 // --------------------
 // CORS (React + SignalR)
@@ -36,12 +16,14 @@ builder.Services.AddCors(options =>
     {
         policy
             .WithOrigins(
-                "http://localhost:5173",
-                "https://gestetner-service-schedule-4cse.vercel.app" // Removed trailing slash
+                "http://localhost:5173",  // Vite dev server
+                "http://localhost:3000",  // React dev server
+                "https://gestetner-service-schedule-4cse.vercel.app",  // ✅ ADD YOUR VERCEL DOMAIN
+                "https://gestetner-service-schedule-git-227f58-chamodsathsaras-projects.vercel.app"  // ✅ ADD if you have preview deployments
             )
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials();
+            .AllowCredentials();  // Required for SignalR
     });
 });
 
@@ -88,6 +70,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             {
                 var accessToken = context.Request.Query["access_token"];
                 var path = context.HttpContext.Request.Path;
+
                 if (!string.IsNullOrEmpty(accessToken) &&
                     path.StartsWithSegments("/notificationhub"))
                 {
@@ -111,21 +94,18 @@ var app = builder.Build();
 // --------------------
 // Middleware pipeline (ORDER MATTERS)
 // --------------------
-
-// ✅ Use forwarded headers FIRST (for Railway's proxy)
-app.UseForwardedHeaders();
-
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// ❌ REMOVE HTTPS redirection for Railway
-// app.UseHttpsRedirection();
+// ✅ IMPORTANT: UseCors MUST be here, BEFORE UseAuthentication
+app.UseCors("AllowOrigin");
 
-app.UseRouting();               // ✅ REQUIRED
-app.UseCors("AllowOrigin");     // ✅ BEFORE auth
+app.UseHttpsRedirection();
+app.UseRouting();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
