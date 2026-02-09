@@ -15,16 +15,24 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowOrigin", policy =>
     {
         policy
-            .WithOrigins(
-                "http://localhost:5173",  // Vite dev server
-                "http://localhost:3000",  // React dev server
-                "https://gestetner-service-schedule-4cse.vercel.app",  // ✅ ADD YOUR VERCEL DOMAIN
-                "https://gestetner-service-schedule-git-227f58-chamodsathsaras-projects.vercel.app"  // ✅ ADD if you have preview deployments
-            )
+            .SetIsOriginAllowed(_ => true)  // ⚠️ Only for testing!
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials();  // Required for SignalR
+            .AllowCredentials();
     });
+    //options.AddPolicy("AllowOrigin", policy =>
+    //{
+    //    policy
+    //        .WithOrigins(
+    //            "http://localhost:5173",  // Vite dev server
+    //            "http://localhost:3000",  // React dev server
+    //            "https://gestetner-service-schedule-4cse.vercel.app",  // ✅ ADD YOUR VERCEL DOMAIN
+    //            "https://gestetner-service-schedule-git-227f58-chamodsathsaras-projects.vercel.app"  // ✅ ADD if you have preview deployments
+    //        )
+    //        .AllowAnyHeader()
+    //        .AllowAnyMethod()
+    //        .AllowCredentials();  // Required for SignalR
+    //});
 });
 
 // --------------------
