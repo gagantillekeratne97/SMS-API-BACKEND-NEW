@@ -178,6 +178,7 @@ namespace ServvistaWebAppAPI.Services
                 {
                     if (jobStatus == "COMPLETE")
                     {
+                        //This is updated
                         string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, SOLUTION_CATEGORY = @custype, COMPLETE_BY = @techcode, COMPLETED_DATE = @completedate
                                               WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
                         DateTime completeDate = GetSriLankanTime();
