@@ -11,27 +11,29 @@ var builder = WebApplication.CreateBuilder(args);
 // CORS (React + SignalR)
 // --------------------
 builder.Services.AddCors(options =>
-{    
+{
     options.AddPolicy("AllowOrigin", policy =>
     {
         policy
-            .SetIsOriginAllowed(_ => true)  // ⚠️ Only for testing!
+            .SetIsOriginAllowed(_ => true)          // ⚠️ Only for testing! Works with credentials
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();
     });
+
+    // Recommended for production (uncomment when ready + add your real domains)
     //options.AddPolicy("AllowOrigin", policy =>
     //{
-    //    policy
-    //        .WithOrigins(
-    //            "http://localhost:5173",  // Vite dev server
-    //            "http://localhost:3000",  // React dev server
-    //            "https://gestetner-service-schedule-4cse.vercel.app",  // ✅ ADD YOUR VERCEL DOMAIN
-    //            "https://gestetner-service-schedule-git-227f58-chamodsathsaras-projects.vercel.app"  // ✅ ADD if you have preview deployments
-    //        )
-    //        .AllowAnyHeader()
-    //        .AllowAnyMethod()
-    //        .AllowCredentials();  // Required for SignalR
+    //    policy.WithOrigins(
+    //        "http://localhost:5173",
+    //        "http://localhost:3000",
+    //        "https://gestetner-service-schedule-4cse.vercel.app",
+    //        "https://gestetner-service-schedule-git-227f58-chamodsathsaras-projects.vercel.app"
+    //        // Add more preview branches if needed, e.g. "https://*.vercel.app"
+    //    )
+    //    .AllowAnyHeader()
+    //    .AllowAnyMethod()
+    //    .AllowCredentials();
     //});
 });
 
@@ -66,21 +68,19 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = builder.Configuration["Jwt:Issuer"],
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("Jwt:Key is missing"))
             ),
             NameClaimType = ClaimTypes.Name
         };
 
-        // 🔥 REQUIRED for SignalR over WebSockets
+        // Uncomment when SignalR with token in query string is needed
         //options.Events = new JwtBearerEvents
         //{
         //    OnMessageReceived = context =>
         //    {
         //        var accessToken = context.Request.Query["access_token"];
         //        var path = context.HttpContext.Request.Path;
-
-        //        if (!string.IsNullOrEmpty(accessToken) &&
-        //            path.StartsWithSegments("/notificationhub"))
+        //        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/notificationhub"))
         //        {
         //            context.Token = accessToken;
         //        }
@@ -100,7 +100,7 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 // --------------------
-// Middleware pipeline (ORDER MATTERS)
+// Middleware pipeline — CORRECT ORDER
 // --------------------
 if (app.Environment.IsDevelopment())
 {
@@ -108,17 +108,19 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-// ✅ IMPORTANT: UseCors MUST be here, BEFORE UseAuthentication
+// Optional: Remove or keep — Railway usually handles HTTPS, so this can sometimes cause warnings
+// app.UseHttpsRedirection();
+
+app.UseRouting();                    // ← Must come BEFORE UseCors
+
+// 🔥 FIXED: CORS now in the correct position (after Routing, before Auth + Endpoints)
 app.UseCors("AllowOrigin");
 
-app.UseHttpsRedirection();
-app.UseRouting();
-
-app.UseAuthentication();
+app.UseAuthentication();             // Authentication before Authorization
 app.UseAuthorization();
 
 // --------------------
-// Endpoints
+// Endpoints — these must come AFTER UseCors
 // --------------------
 app.MapHub<NotificationHub>("/notificationhub");
 app.MapControllers();
