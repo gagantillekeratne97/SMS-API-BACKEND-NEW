@@ -21,6 +21,7 @@ namespace ServvistaWebAppAPI.Controllers
         [HttpPost("recallPreviousSchedule")]
         public IActionResult RecallPreviousSchedule([FromBody] RecallPreviousScheduleModel model)
         {
+            //changes done.
             try
             {
                 using (SqlConnection connection = new SqlConnection(_connectionString))
