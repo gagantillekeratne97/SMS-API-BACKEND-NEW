@@ -190,8 +190,9 @@ namespace ServvistaWebAppAPI.Services
                     }
                     else
                     {
-                        string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, CR_BY = @techcode, CR_DATE = @completedate
-                                              WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
+                        string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, CR_BY = @techcode, CR_DATE = @completedate, 
+                                                STARTED_BY = @techcode, STARTED_DATE = @completedate
+                                                WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
                         DateTime completeDate = GetSriLankanTime();
                         await connection.ExecuteAsync(updateJobQuery, new { jobid = jobId, jobstatus = jobStatus, techcode = techCode, completedate = completeDate });
                     }

@@ -28,7 +28,10 @@
 
     public class BreakdownJobsRecallModel   
     {
-        //Working on it 
+        public string techCode { get; set; }
+        public string jobID { get; set; }  
+        public string note { get; set; }
+        public string reason { get; set; }        
     }
 
     public class BreakdownCategoriesModel

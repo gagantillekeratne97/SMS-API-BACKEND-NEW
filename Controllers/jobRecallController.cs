@@ -18,12 +18,49 @@ namespace ServvistaWebAppAPI.Controllers
             _connectionString = config.GetConnectionString("DefaultConnection");
         }
 
+        private DateTime GetSriLankanTime()
+        {
+            string[] zoneInfo = { "Asia/Colombo", "Sri Lanka Standard Time" };
+            foreach (var id in zoneInfo)
+            {
+                try
+                {
+                    var timeZone = TimeZoneInfo.FindSystemTimeZoneById(id);
+                    return TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZone);
+                }
+                catch (Exception ex)
+                {
+                    return DateTime.UtcNow;
+                }
+            }
+
+            throw new Exception("Sri Lankan timezone not found in this system.");
+        }
+
         //POST: api/jobRecall/recallJob
         [Authorize]
         [HttpPost("recallJob")]
-        public IActionResult RecallJob() 
+        public IActionResult RecallJob([FromBody] BreakdownJobsRecallModel model) 
         {
-            return Ok("This endpoint is under construction. Please check back later.");
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();                
+                string insertJobRecallQuery = @"INSERT INTO TBL_RECALL_JOBS (RECALL_REASON, RECALL_DATE, JOB_ID, IS_RECALL)
+                                            VALUES (@recallReason, @recallDate, @jobId, '1')";
+
+                DateTime recallDate = GetSriLankanTime();
+                var insertedResult = connection.Execute(insertJobRecallQuery, new { recallReason = model.reason, recallDate = recallDate, jobId = model.jobID });
+
+                if (insertedResult > 0)
+                {
+                    string updateRecallJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = 'started', STARTED_BY = @techCode, 
+                                             STARTED_DATE = @startedDate
+                                             WHERE DJ_ID = @jobID";
+                    DateTime startedDate = GetSriLankanTime();
+                    connection.Execute(updateRecallJobQuery, new { techCode = model.techCode, startedDate = startedDate, jobID = model.jobID });
+                }                
+            }
+            return Ok("Recall Job Updated Successfully");
         }
 
         //GET: api/jobRecall/getAllLastYearsJobs?techCode={techCode}
