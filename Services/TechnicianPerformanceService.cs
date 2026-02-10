@@ -67,7 +67,7 @@ namespace ServvistaWebAppAPI.Services
                 WHERE TECH_CODE = @techcode 
                   AND DJ_DATE >= DATEADD(WEEK, DATEDIFF(WEEK, 0, GETDATE()) - 1, 0)
                   AND DJ_DATE <  DATEADD(WEEK, DATEDIFF(WEEK, 0, GETDATE()), 0)
-                  AND JOB_STATUS = 'COMPLETE';";
+                  AND JOB_STATUS = 'COMPLETED';";
 
                 lastWeekCompletedJobs = await connection.ExecuteScalarAsync<int>(lastWeekCompletedJobsQuery, new { techcode = techCode });
 
