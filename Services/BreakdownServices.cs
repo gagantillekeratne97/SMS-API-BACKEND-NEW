@@ -176,7 +176,7 @@ namespace ServvistaWebAppAPI.Services
 
                 if (IsJobExists) 
                 {
-                    if (jobStatus == "COMPLETE")
+                    if (jobStatus == "COMPLETED")
                     {
                         //This is updated
                         string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, SOLUTION_CATEGORY = @custype, COMPLETE_BY = @techcode, COMPLETED_DATE = @completedate
