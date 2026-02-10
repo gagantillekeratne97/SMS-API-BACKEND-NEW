@@ -8,5 +8,6 @@
         public string serialNo { get; set; } 
         public string jobStatus { get; set; }
         public string Note { get; set; }
+        public string? solutionCategory { get; set; }
     }
 }

@@ -174,13 +174,14 @@ namespace ServvistaWebAppAPI.Services
                                             END AS JobExists";
                 bool IsJobExists = await connection.QuerySingleAsync<bool>(checkJobIDExists, new { techcode = techCode, jobid = jobId});
 
-                if (IsJobExists) {
+                if (IsJobExists) 
+                {
                     if (jobStatus == "COMPLETE")
                     {
-                        string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, COMPLETE_BY = @techcode, COMPLETED_DATE = @completedate
+                        string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, SOLUTION_CATEGORY = @custype, COMPLETE_BY = @techcode, COMPLETED_DATE = @completedate
                                               WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
                         DateTime completeDate = GetSriLankanTime();
-                        await connection.ExecuteAsync(updateJobQuery, new { jobid = jobId, jobstatus = jobStatus, techcode = techCode, completedate = completeDate });
+                        await connection.ExecuteAsync(updateJobQuery, new { jobid = jobId, jobstatus = jobStatus, custype = model.solutionCategory, techcode = techCode, completedate = completeDate });
                     } else if (jobStatus == "CANCELLED") 
                     {
                         string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, CANCELLED_BY = @techcode, CANCELLED_DATE = @cancelledate
