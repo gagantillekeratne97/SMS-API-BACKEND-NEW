@@ -54,7 +54,7 @@ namespace ServvistaWebAppAPI.Controllers
                 if (insertedResult > 0)
                 {
                     string updateRecallJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = 'started', STARTED_BY = @techCode, 
-                                             STARTED_DATE = @startedDate
+                                             STARTED_DATE = @startedDate, DJ_DATE = @startedDate
                                              WHERE DJ_ID = @jobID";
                     DateTime startedDate = GetSriLankanTime();
                     connection.Execute(updateRecallJobQuery, new { techCode = model.techCode, startedDate = startedDate, jobID = model.jobID });
@@ -84,7 +84,7 @@ namespace ServvistaWebAppAPI.Controllers
                     connection.Open();
                     string query = @"
                     SELECT * FROM TBL_DAILY_JOBS 
-                    WHERE TECH_CODE = @techcode AND DJ_DATE >= @firstdayoflastyear AND DJ_DATE <= @lastoflastyear AND JOB_STATUS = 'TECH ALLOCATED'";
+                    WHERE TECH_CODE = @techcode AND DJ_DATE >= @firstdayoflastyear AND DJ_DATE <= @lastoflastyear AND JOB_STATUS IN ('TECH ALLOCATED', 'started')";
                     var result = connection.Query<BreakdownModel>(query, new { techcode = techCode, firstdayoflastyear = firstDayOfLastYear, lastoflastyear = lastDayOfLastYear })
                    .Select(x => { x.TYPE = jobType; return x; })
                    .ToList();
