@@ -9,7 +9,7 @@ namespace ServvistaWebAppAPI.Services
 {
     public class TechnicianPerformanceService : ITechnicianPerformanceService
     {
-        private readonly string _connectionString;
+        private readonly string _connectionString; 
         public TechnicianPerformanceService(IConfiguration config)
         {
             _connectionString = config.GetConnectionString("DefaultConnection");
@@ -40,7 +40,7 @@ namespace ServvistaWebAppAPI.Services
                 SELECT COUNT(*) AS CompletedJobs
                 FROM TBL_DAILY_JOBS 
                 WHERE TECH_CODE = @techcode
-                AND JOB_STATUS = 'COMPLETE'";
+                AND JOB_STATUS = 'COMPLETED'";
                 completedJobsCount = await connection.ExecuteScalarAsync<int>(completedJobsQuery, new { techcode = techCode });
 
                 string totalJobsQuery = @"
