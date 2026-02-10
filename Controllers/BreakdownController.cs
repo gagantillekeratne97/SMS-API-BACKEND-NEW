@@ -24,6 +24,22 @@ namespace ServvistaWebAppAPI.Controllers
             _breakdownServices = breakdownServices; 
         }
 
+        //GET: api/breakdown/solutionCategories
+        [Authorize]
+        [HttpGet("solutionCategories")]
+        public async Task<IActionResult> GetSolutionCategories()
+        {
+            try
+            {
+                var result = await _breakdownServices.GetSolutionCategoriesAsync();
+                return Ok(result); 
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message); 
+            }
+        }
+
         //api/breakdown/updatejobstatus        
         [Authorize]
         [HttpPost("updatejobstatus")]

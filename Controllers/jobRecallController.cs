@@ -18,6 +18,14 @@ namespace ServvistaWebAppAPI.Controllers
             _connectionString = config.GetConnectionString("DefaultConnection");
         }
 
+        //POST: api/jobRecall/recallJob
+        [Authorize]
+        [HttpPost("recallJob")]
+        public IActionResult RecallJob() 
+        {
+            return Ok("This endpoint is under construction. Please check back later.");
+        }
+
         //GET: api/jobRecall/getAllLastYearsJobs?techCode={techCode}
         [Authorize]
         [HttpGet("getAllLastYearsJobs")]
@@ -25,6 +33,7 @@ namespace ServvistaWebAppAPI.Controllers
         {
             try
             {
+                string jobType = "Due";
                 DateTime now = DateTime.UtcNow;
 
                 // Last year
@@ -39,7 +48,10 @@ namespace ServvistaWebAppAPI.Controllers
                     string query = @"
                     SELECT * FROM TBL_DAILY_JOBS 
                     WHERE TECH_CODE = @techcode AND DJ_DATE >= @firstdayoflastyear AND DJ_DATE <= @lastoflastyear AND JOB_STATUS = 'TECH ALLOCATED'";
-                    var result = connection.Query<BreakdownModel>(query, new { techcode = techCode, firstdayoflastyear = firstDayOfLastYear, lastoflastyear = lastDayOfLastYear});
+                    var result = connection.Query<BreakdownModel>(query, new { techcode = techCode, firstdayoflastyear = firstDayOfLastYear, lastoflastyear = lastDayOfLastYear })
+                   .Select(x => { x.TYPE = jobType; return x; })
+                   .ToList();
+
                     return Ok(result);
                 }                
             }

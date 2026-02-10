@@ -33,6 +33,20 @@ namespace ServvistaWebAppAPI.Services
             throw new Exception("Sri Lankan timezone not found in this system.");
         }
 
+        public async Task<List<BreakdownCategoriesModel>> GetSolutionCategoriesAsync()
+        {
+            List<BreakdownCategoriesModel> breakdownCategories = new List<BreakdownCategoriesModel>();
+            using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                connection.Open();
+                string query = @"SELECT ID, SOLUTION_CATEGORY, SOLUTION_SHORT_CATEGORY FROM TBL_BREAKDOWN_CATEGORY";
+                var result = await connection.QueryAsync<BreakdownCategoriesModel>(query);
+                breakdownCategories = result.ToList();
+            }
+
+            return breakdownCategories;
+        }
+
         public async Task<List<BreakdownModel>> GetTodayBreakdownList(string techCode)
         {
             List<BreakdownModel> breakdownModelsLists = new List<BreakdownModel>();

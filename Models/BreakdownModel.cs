@@ -23,5 +23,18 @@
         public string NOTE { get; set; }
         public string JOB_STATUS { get; set; }  
         public bool IS_TECH_NOTIFIED { get; set; }
+        public string? TYPE { get; set; }   
     }    
+
+    public class BreakdownJobsRecallModel   
+    {
+        
+    }
+
+    public class BreakdownCategoriesModel
+    {
+        public int ID { get; set; }
+        public string SOLUTION_CATEGORY { get; set; }   
+        public string SOLUTION_SHORT_CATEGORY { get; set; }
+    }
 }

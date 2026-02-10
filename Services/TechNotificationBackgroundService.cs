@@ -31,10 +31,28 @@ namespace ServvistaWebAppAPI.Services
         {
             while (!stoppingToken.IsCancellationRequested)
             {
+                await UpdateEmptyTechNotified();
                 await ProcessAndSendNotification(stoppingToken);
                 await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
             }
         }
+
+        private async Task UpdateEmptyTechNotified() { 
+            string connectionString = _configuration.GetConnectionString("DefaultConnection"); 
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string query = @"
+                UPDATE TBL_DAILY_JOBS
+                SET IS_TECH_NOTIFIED = '0'
+                WHERE IS_TECH_NOTIFIED IS NULL AND 
+                JOB_STATUS = 'TECH ALLOCATED' AND                 
+                DJ_DATE >= CAST(GETDATE() AS DATE)
+                ";
+                await connection.ExecuteAsync(query);
+            }
+        }
+
 
         private async Task ProcessAndSendNotification(CancellationToken token)
         {
