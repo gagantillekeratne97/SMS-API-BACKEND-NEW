@@ -45,9 +45,10 @@ namespace ServvistaWebAppAPI.Controllers
                                                                     model.visitNo, 
                                                                     model.machineRefNo, 
                                                                     model.jobStatus, 
-                                                                    model.meterReadingValue, 
+                                                                    model.meterReadingValue,                                                                     
                                                                     model.hologramNumber, 
-                                                                    model.solution).Result;
+                                                                    model.solution, 
+                                                                    model.solutionCategory).Result;
                 return Ok(result);
             }
             catch (Exception ex)

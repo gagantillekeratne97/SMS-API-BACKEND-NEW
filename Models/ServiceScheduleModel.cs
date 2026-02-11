@@ -10,6 +10,7 @@
         public int? hologramNumber { get; set; } 
         public int jobId { get; set; } 
         public string? solution { get; set; }        
+        public string? solutionCategory { get; set; }
     }
 
     public class ServiceVisitRecallModel

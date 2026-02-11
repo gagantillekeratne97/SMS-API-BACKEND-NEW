@@ -2,6 +2,7 @@
 {
     public class RecallPreviousScheduleModel
     {        
+        public string techCode { get; set; }
         public string recallReason { get; set; }
         public DateTime recallDate { get; set; }
         public int rowID { get; set; }

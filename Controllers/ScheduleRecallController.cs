@@ -25,7 +25,7 @@ namespace ServvistaWebAppAPI.Controllers
             try
             {
                 using (SqlConnection connection = new SqlConnection(_connectionString))
-                {
+                {                    
                     //Declaring variables 
                     int rowID = model.rowID;
                     string reason = model.recallReason;
@@ -51,9 +51,9 @@ namespace ServvistaWebAppAPI.Controllers
                     if (isRowExists) {
                         string insertRecallQuery = @"
                         INSERT INTO TBL_RECALL_VISIT 
-                        (RECALL_REASON, RECALL_DATE, ROW_ID, VISIT_NO, IS_RECALL) 
+                        (RECALL_REASON, RECALL_DATE, ROW_ID, VISIT_NO, IS_RECALL, IS_COMPLETED, RECALL_TYPE) 
                         OUTPUT INSERTED.RECALL_ID
-                        VALUES (@recallReason, @recallDate, @rowId, @visitNo, @isRecall)"; 
+                        VALUES (@recallReason, @recallDate, @rowId, @visitNo, @isRecall, '0', 'Service')"; 
 
                         int recallID = connection.ExecuteScalar<int>(insertRecallQuery, new
                         {
@@ -62,25 +62,30 @@ namespace ServvistaWebAppAPI.Controllers
                             rowId = rowID,
                             visitNo = visitNo,
                             isRecall = isRecall
-                        });
-
-                        //string updateScheduleQuery = @"
-                        //UPDATE TBL_SERVICE_SCEDULE_UPDATE 
-                        //SET IS_ACTIVE = '1', RECALL_ID = @recallID
-                        //WHERE T_ID = @rowID";
-                        //var recallResult = connection.Execute(updateScheduleQuery, new { recallID = recallID, rowID = rowID});
+                        });                        
 
                         string updateScheduleVisitQuery = $@"
                         UPDATE TBL_SERVICE_SCEDULE_UPDATE 
-                        SET SV{visitNo} = @visitDate, SV{visitNo}_STATUS = @visitStatus, SV{visitNo}_SMS = @visitDate
+                        SET SV{visitNo} = @visitDate, SV{visitNo}_STATUS = @visitStatus, SV{visitNo}_SMS = @visitDate, RECALL_ID = @recallID
                         WHERE T_ID = @rowid";
 
                         var scheduleVisitResult = connection.Execute(updateScheduleVisitQuery, new
                         {
                             visitDate = GetSriLankanTime(),
                             visitStatus = onSite ? "started" : "pending",
-                            rowid = rowID
+                            rowid = rowID,
+                            recallID = recallID,
                         });
+
+                        if (onSite)
+                        {
+                            string insertActivityQuery = @"
+                            INSERT INTO TBL_SCHEDULE_ACTIVITY 
+                            (ROW_ID, VISIT_NO, STARTED_BY, STARTED_DATE) 
+                            VALUES
+                            (@rowid, @visitno, @startedby, @starteddate)";
+                            var insertResult = connection.Execute(insertActivityQuery, new { rowid = rowID, visitno = visitNo, startedby = model.techCode, starteddate = GetSriLankanTime()});
+                        }                        
 
                         return Ok("Service Schedule Recalled Successfully.");
                     }
