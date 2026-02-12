@@ -38,7 +38,25 @@ namespace ServvistaWebAppAPI.Controllers
         }
 
         //GET: api/jobRecall/getallRecallJobs
-        
+        [Authorize]
+        [HttpGet("getallRecallJobs")]
+        public IActionResult GetAllRecallJobs(string techCode) 
+        {
+            try
+            {
+                using (SqlConnection connection = new SqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    string query = @"SELECT * FROM TBL_RECALL_JOBS WHERE TECH_CODE = @techcode";
+                    var result = connection.Query<BreakdownModel>(query, new { techcode = techCode });
+                    return Ok(result);
+                }               
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
 
 
         //POST: api/jobRecall/recallJob
@@ -48,21 +66,85 @@ namespace ServvistaWebAppAPI.Controllers
         {
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
-                connection.Open();                
-                string insertJobRecallQuery = @"INSERT INTO TBL_RECALL_JOBS (RECALL_REASON, RECALL_DATE, JOB_ID, IS_RECALL)
-                                            VALUES (@recallReason, @recallDate, @jobId, '1')";
+                connection.Open();
+                //get daily jobs information 
+                string getJobInfoQuery = @"
+                    SELECT DJ_ID, SERIAL_NO, MACHINE_REF_NO, CUS_NAME, CUS_ADD1, CUS_ADD2, CUS_ADD3, CUS_CONTACT, 
+                    CUS_TEL_NO, TEAM_ID, TEAM_NAME, DJ_DATE, TECH_CODE, TECH_MOBILE, MACHINE_MODEL_ID, MACHINE_MODEL_NAME, CUS_STATUS, JOB_STATUS
+                    FROM TBL_DAILY_JOBS
+                    WHERE DJ_ID = @jobid
+                    ";
+
+                var jobInforResult = connection.Query(getJobInfoQuery, new { jobid = model.jobID }).SingleOrDefault();                
+
+                string serialNo = jobInforResult.SERIAL_NO; 
+                string machineRefNo = jobInforResult.MACHINE_REF_NO; 
+                string cusName = jobInforResult.CUS_NAME; 
+                string cusAdd1 = jobInforResult.CUS_ADD1;
+                string cusAdd2 = jobInforResult.CUS_ADD2; 
+                string cusAdd3 = jobInforResult.CUS_ADD3; 
+                string contact = jobInforResult.CUS_CONTACT;
+                string cusTel = jobInforResult.CUS_TEL_NO; 
+                string teamId = jobInforResult.TEAM_ID;
+                string teanName = jobInforResult.TEAM_NAME;
+                DateTime djDate = jobInforResult.DJ_DATE; 
+                string techCode = jobInforResult.TECH_CODE; 
+                string techMobile = jobInforResult.TECH_MOBILE;
+                string machineModelID = jobInforResult.MACHINE_MODEL_ID;
+                string machineModelName = jobInforResult.MACHINE_MODEL_NAME; 
+                string cusStatus = jobInforResult.CUS_STATUS;
+                string jobStatus = jobInforResult.JOB_STATUS;
+
+                string insertJobRecallQuery = @"
+                INSERT INTO TBL_RECALL_JOBS 
+                (RECALL_REASON, RECALL_DATE, JOB_ID, IS_RECALL, SERIAL_NO, MACHINE_REF_NO, CUS_NAME, CUS_ADD1, CUS_ADD2, CUS_ADD3, 
+                CUS_CONTACT, 
+                CUS_TEL_NO, TEAM_ID, TEAM_NAME, DJ_DATE, TECH_CODE, TECH_MOBILE, MACHINE_MODEL_ID, MACHINE_MODEL_NAME, CUS_STATUS, 
+                NOTE, JOB_STATUS, 
+                IS_TECH_NOTIFIED, TYPE)
+                VALUES (
+                @recallreason, @recalldate, @jobid, @isrecall, @serialno, @machinerefno, @cusname, @cusadd1, @cusadd2, @cusadd3,
+                @cuscontact, @custelno, @teamid, @teamname, @djdate, @techcode, @techmobile, 
+                @machinemodelid, @machinemodelname, @cusstatus, @note, @jobstatus, 
+                @istechnotified, @type)";
 
                 DateTime recallDate = GetSriLankanTime();
-                var insertedResult = connection.Execute(insertJobRecallQuery, new { recallReason = model.reason, recallDate = recallDate, jobId = model.jobID });
 
-                if (insertedResult > 0)
+                var insertResult = connection.Execute(insertJobRecallQuery, new { 
+                    recallreason = model.reason, 
+                    recalldate = GetSriLankanTime(), 
+                    jobid = model.jobID, 
+                    isrecall = true, 
+                    serialno = serialNo, 
+                    machinerefno = machineRefNo, 
+                    cusname = cusName, 
+                    cusadd1 = cusAdd1, 
+                    cusadd2 = cusAdd2,
+                    cusadd3 = cusAdd3,
+                    cuscontact = contact, 
+                    custelno = cusTel, 
+                    teamid = teamId, 
+                    teamname = teanName, 
+                    djdate = djDate, 
+                    techcode = techCode, 
+                    techmobile = techMobile, 
+                    machinemodelid = machineModelID, 
+                    machinemodelname = machineModelName, 
+                    cusstatus = cusStatus, 
+                    note = model.note,
+                    jobstatus = jobStatus,
+                    istechnotified = true, 
+                    type = "Job recall"
+                });                                
+
+                if (insertResult > 0)
                 {
                     string updateRecallJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = 'started', STARTED_BY = @techCode, 
                                              STARTED_DATE = @startedDate, DJ_DATE = @startedDate
                                              WHERE DJ_ID = @jobID";
                     DateTime startedDate = GetSriLankanTime();
                     connection.Execute(updateRecallJobQuery, new { techCode = model.techCode, startedDate = startedDate, jobID = model.jobID });
-                }                
+                }
             }
             return Ok("Recall Job Updated Successfully");
         }
