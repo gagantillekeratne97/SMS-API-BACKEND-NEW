@@ -23,6 +23,12 @@ namespace ServvistaWebAppAPI.Controllers
         {
             try
             {
+                //Status                 
+                //tech name
+                //contact person 
+                //customer telephone 
+                //recall reason 
+                //recall date 
                 using (SqlConnection connection = new SqlConnection(_connectionString))
                 {
                     List<RecallResponseModel> recallPreviousScheduleModels = new List<RecallResponseModel>();
@@ -41,7 +47,10 @@ namespace ServvistaWebAppAPI.Controllers
                         SERIAL_NO           AS serialNo,
                         VISIT_NO            AS expectedVisitNo,
                         EXPECTED_VISIT_DATE AS expectedVisitDate,
-                        TECH_NAME           AS techName
+                        TECH_NAME           AS techName,       
+                        RECALL_REASON       AS recallReason, 
+                        RECALL_DATE         AS recallDate, 
+                        SERVICE_STATUS      AS serviceStatus
                     FROM TBL_RECALL_VISIT
                     WHERE TECH_CODE = @techcode";
 
@@ -91,8 +100,8 @@ namespace ServvistaWebAppAPI.Controllers
                         ////Getting Row info from the TBL_SERVICE_SCEDULE_UPDATE table 
                         ////to Recall 
                         string serviceScheduleTableQuery = $@"
-                        SELECT EXPT_SV{visitNo} AS EXPECTED_VISIT_DATE, SERIAL_NO, MACHINE_REF, SS.CUS_ID, SS.CUS_NAME, CUS.CONTACT_PERSON, CUS.TEL_NO
-                        M_LOC1, M_LOC2, M_LOC3, SS.TECH_NAME                         
+                        SELECT EXPT_SV{visitNo} AS EXPECTED_VISIT_DATE, SERIAL_NO, MACHINE_REF, SS.CUS_ID, SS.CUS_NAME, CUS.CONTACT_PERSON, CUS.TEL_NO,
+                        M_LOC1, M_LOC2, M_LOC3, SS.TECH_NAME, SS.SV{visitNo}_STATUS AS SERVICE_STATUS                         
                         FROM TBL_SERVICE_SCEDULE_UPDATE SS
                         INNER JOIN MTBL_CUSTOMER_MASTER CUS
                         ON CUS.CUS_CODE = SS.CUS_ID
@@ -110,15 +119,21 @@ namespace ServvistaWebAppAPI.Controllers
                         string machineLoc2 = serviceScheduleResult.M_LOC2; 
                         string machineLoc3 = serviceScheduleResult.M_LOC3; 
                         string techName = serviceScheduleResult.TECH_NAME;
+                        string serviceStatus = serviceScheduleResult.SERVICE_STATUS;
                         DateTime expectedVisitDate = Convert.ToDateTime(serviceScheduleResult.EXPECTED_VISIT_DATE);
 
                         string insertRecallQuery = @"
                         INSERT INTO TBL_RECALL_VISIT 
                         (RECALL_REASON, RECALL_DATE, ROW_ID, VISIT_NO, IS_RECALL, IS_COMPLETED, RECALL_TYPE, TECH_CODE, CUS_ID, CUS_NAME, 
-                        CONTACT_PERSON, TEL_NO, M_LOC1, M_LOC2, M_LOC3, MACHINE_REF, SERIAL_NO, EXPECTED_VISIT_DATE) 
+                        CONTACT_PERSON, TEL_NO, M_LOC1, M_LOC2, M_LOC3, MACHINE_REF, TECH_NAME,SERIAL_NO, EXPECTED_VISIT_DATE, SERVICE_STATUS) 
                         OUTPUT INSERTED.RECALL_ID
                         VALUES (@recallReason, @recallDate, @rowId, @visitNo, @isRecall, '0', 'Service', @techcode, @cusid, @cusname, 
-                        @contactperson, @telno, @mloc1, @mloc2, @mloc3, @machineref, @serialno, @expectedvisitdate)";
+                        @contactperson, @telno, @mloc1, @mloc2, @mloc3, @machineref, @techname, @serialno, @expectedvisitdate, @servicestatus)";
+
+                        if (string.IsNullOrEmpty(serviceStatus))
+                        {
+                            serviceStatus = "pending"; 
+                        }
 
                         int recallID = connection.ExecuteScalar<int>(insertRecallQuery, new
                         {
@@ -127,8 +142,7 @@ namespace ServvistaWebAppAPI.Controllers
                             rowId = rowID,
                             visitNo = visitNo,
                             isRecall = isRecall,
-                            techcode = model.techCode, 
-                            techname = techName,
+                            techcode = model.techCode,                             
                             cusid = customerCode, 
                             cusname = customerName, 
                             contactperson = contactPerson, 
@@ -137,8 +151,10 @@ namespace ServvistaWebAppAPI.Controllers
                             mloc2 = machineLoc2, 
                             mloc3 = machineLoc3, 
                             machineref = machineRefNo,
+                            techname = techName,
                             serialno = serialNo,      
                             expectedvisitdate = expectedVisitDate,
+                            servicestatus = serviceStatus
                         });
 
                         string updateScheduleVisitQuery = $@"

@@ -37,6 +37,10 @@ namespace ServvistaWebAppAPI.Controllers
             throw new Exception("Sri Lankan timezone not found in this system.");
         }
 
+        //GET: api/jobRecall/getallRecallJobs
+        
+
+
         //POST: api/jobRecall/recallJob
         [Authorize]
         [HttpPost("recallJob")]

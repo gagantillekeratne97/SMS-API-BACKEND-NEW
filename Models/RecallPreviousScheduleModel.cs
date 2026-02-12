@@ -14,6 +14,7 @@
 
 public class RecallResponseModel
 {
+    public string jobStatus { get; set; }     
     public string techCode { get; set; }
     public string serialNo { get; set; }
     public string machineRefNo { get; set; }
@@ -27,5 +28,8 @@ public class RecallResponseModel
     public string machineLocation01 { get; set; }
     public string machineLocation02 { get; set; }
     public string machineLocation03 { get; set; }
-    public string techName { get; set; }    
+    public string techName { get; set; }  
+    public string recallReason { get; set; } 
+    public DateTime recallDate { get; set; } 
+    public string serviceStatus { get; set; }
 }
