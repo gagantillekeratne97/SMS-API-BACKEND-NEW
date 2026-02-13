@@ -149,9 +149,9 @@ namespace ServvistaWebAppAPI.Controllers
                 //insert into activity table 
                 string insertActivityQuery = @"
                 INSERT INTO TBL_SCHEDULE_ACTIVITY 
-                (ROW_ID, STARTED_BY, STARTED_DATE, REASON, SOLUTION_CATEGORY) 
+                (ROW_ID, STARTED_BY, STARTED_DATE, REASON, SOLUTION_CATEGORY, TYPE) 
                 VALUES 
-                (@jobid, @startedby, @starteddate, @reason, @solution)";
+                (@jobid, @startedby, @starteddate, @reason, @solution, @type)";
 
                 var insertActivityResult = connection.Execute(insertActivityQuery, new
                 {
@@ -159,16 +159,17 @@ namespace ServvistaWebAppAPI.Controllers
                     startedby = model.techCode, 
                     starteddate = GetSriLankanTime(), 
                     reason = model.reason, 
-                    solution = cusType
+                    solution = cusType, 
+                    type = "Job recall"
                 });
 
                 if (recallID > 0)
                 {
-                    string updateRecallJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = 'started', STARTED_BY = @techCode, 
-                                             STARTED_DATE = @startedDate, DJ_DATE = @startedDate, RECALL_ID = @recallid
+                    string updateRecallJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = 'started', STARTED_BY = @techCode, RECALL_ID = @recallid, 
+                                             STARTED_DATE = @startedDate
                                              WHERE DJ_ID = @jobID";
                     DateTime startedDate = GetSriLankanTime();
-                    connection.Execute(updateRecallJobQuery, new { techCode = model.techCode, startedDate = startedDate, jobID = model.jobID, recallid = recallID });
+                    connection.Execute(updateRecallJobQuery, new { techCode = model.techCode, startedDate = startedDate, jobID = model.jobID, recallid = recallID});
                 }
             }
             return Ok("Recall Job Updated Successfully");
