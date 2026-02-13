@@ -149,7 +149,7 @@ namespace ServvistaWebAppAPI.Controllers
                 //insert into activity table 
                 string insertActivityQuery = @"
                 INSERT INTO TBL_SCHEDULE_ACTIVITY 
-                (ROW_ID, STARTED_BY, STARTED_DATE, REASON, SOLUTION) 
+                (ROW_ID, STARTED_BY, STARTED_DATE, REASON, SOLUTION_CATEGORY) 
                 VALUES 
                 (@jobid, @startedby, @starteddate, @reason, @solution)";
 

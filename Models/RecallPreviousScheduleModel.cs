@@ -8,7 +8,7 @@
         public int rowID { get; set; }
         public int visitNo { get; set; }
         public bool isRecall { get; set; }
-        public bool onSite { get; set; }
+        public bool onSite { get; set; }        
     }
 }
 
