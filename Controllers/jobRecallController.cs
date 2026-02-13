@@ -74,7 +74,7 @@ namespace ServvistaWebAppAPI.Controllers
                 connection.Open();
                 //get daily jobs information 
                 string getJobInfoQuery = @"
-                    SELECT DJ_ID, SERIAL_NO, MACHINE_REF_NO, CUS_NAME, CUS_ADD1, CUS_ADD2, CUS_ADD3, CUS_CONTACT, 
+                    SELECT DJ_ID, SERIAL_NO, MACHINE_REF_NO, CUS_NAME, CUS_ADD1, CUS_ADD2, CUS_ADD3, CUS_CONTACT, CUS_TYPE, 
                     CUS_TEL_NO, TEAM_ID, TEAM_NAME, DJ_DATE, TECH_CODE, TECH_MOBILE, MACHINE_MODEL_ID, MACHINE_MODEL_NAME, CUS_STATUS, JOB_STATUS
                     FROM TBL_DAILY_JOBS
                     WHERE DJ_ID = @jobid
@@ -83,6 +83,7 @@ namespace ServvistaWebAppAPI.Controllers
                 var jobInforResult = connection.Query(getJobInfoQuery, new { jobid = model.jobID }).SingleOrDefault();                
 
                 string serialNo = jobInforResult.SERIAL_NO; 
+                string cusType = jobInforResult.CUS_TYPE;
                 string machineRefNo = jobInforResult.MACHINE_REF_NO; 
                 string cusName = jobInforResult.CUS_NAME; 
                 string cusAdd1 = jobInforResult.CUS_ADD1;
@@ -100,6 +101,8 @@ namespace ServvistaWebAppAPI.Controllers
                 string cusStatus = jobInforResult.CUS_STATUS;
                 string jobStatus = jobInforResult.JOB_STATUS;
 
+                //Insert into DAILY JOBS table 
+
                 string insertJobRecallQuery = @"
                 INSERT INTO TBL_RECALL_JOBS 
                 (RECALL_REASON, RECALL_DATE, JOB_ID, IS_RECALL, SERIAL_NO, MACHINE_REF_NO, CUS_NAME, CUS_ADD1, CUS_ADD2, CUS_ADD3, 
@@ -107,6 +110,7 @@ namespace ServvistaWebAppAPI.Controllers
                 CUS_TEL_NO, TEAM_ID, TEAM_NAME, DJ_DATE, TECH_CODE, TECH_MOBILE, MACHINE_MODEL_ID, MACHINE_MODEL_NAME, CUS_STATUS, 
                 NOTE, JOB_STATUS, 
                 IS_TECH_NOTIFIED, TYPE)
+                OUTPUT INSERTED.RECALL_ID
                 VALUES (
                 @recallreason, @recalldate, @jobid, @isrecall, @serialno, @machinerefno, @cusname, @cusadd1, @cusadd2, @cusadd3,
                 @cuscontact, @custelno, @teamid, @teamname, @djdate, @techcode, @techmobile, 
@@ -115,7 +119,7 @@ namespace ServvistaWebAppAPI.Controllers
 
                 DateTime recallDate = GetSriLankanTime();
 
-                var insertResult = connection.Execute(insertJobRecallQuery, new { 
+                int recallID = connection.Execute(insertJobRecallQuery, new { 
                     recallreason = model.reason, 
                     recalldate = GetSriLankanTime(), 
                     jobid = model.jobID, 
@@ -140,15 +144,31 @@ namespace ServvistaWebAppAPI.Controllers
                     jobstatus = jobStatus,
                     istechnotified = true, 
                     type = "Job recall"
-                });                                
+                });                
 
-                if (insertResult > 0)
+                //insert into activity table 
+                string insertActivityQuery = @"
+                INSERT INTO TBL_SCHEDULE_ACTIVITY 
+                (ROW_ID, STARTED_BY, STARTED_DATE, REASON, SOLUTION) 
+                VALUES 
+                (@jobid, @startedby, @starteddate, @reason, @solution)";
+
+                var insertActivityResult = connection.Execute(insertActivityQuery, new
+                {
+                    jobid = model.jobID, 
+                    startedby = model.techCode, 
+                    starteddate = GetSriLankanTime(), 
+                    reason = model.reason, 
+                    solution = cusType
+                });
+
+                if (recallID > 0)
                 {
                     string updateRecallJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = 'started', STARTED_BY = @techCode, 
-                                             STARTED_DATE = @startedDate, DJ_DATE = @startedDate
+                                             STARTED_DATE = @startedDate, DJ_DATE = @startedDate, RECALL_ID = @recallid
                                              WHERE DJ_ID = @jobID";
                     DateTime startedDate = GetSriLankanTime();
-                    connection.Execute(updateRecallJobQuery, new { techCode = model.techCode, startedDate = startedDate, jobID = model.jobID });
+                    connection.Execute(updateRecallJobQuery, new { techCode = model.techCode, startedDate = startedDate, jobID = model.jobID, recallid = recallID });
                 }
             }
             return Ok("Recall Job Updated Successfully");
@@ -163,25 +183,30 @@ namespace ServvistaWebAppAPI.Controllers
             {
                 string jobType = "Due";
                 DateTime now = DateTime.UtcNow;
-
-                // Last year
-                int lastYear = now.Year - 1;
-
-                DateTime firstDayOfLastYear = new DateTime(lastYear, 1, 1);
-                DateTime lastDayOfLastYear = new DateTime(lastYear, 12, 31, 23, 59, 59);
+                DateTime oneYearBack = now.AddYears(-1);
 
                 using (SqlConnection connection = new SqlConnection(_connectionString))
                 {
                     connection.Open();
                     string query = @"
                     SELECT * FROM TBL_DAILY_JOBS 
-                    WHERE TECH_CODE = @techcode AND DJ_DATE >= @firstdayoflastyear AND DJ_DATE <= @lastoflastyear AND JOB_STATUS IN ('TECH ALLOCATED', 'started')";
-                    var result = connection.Query<BreakdownModel>(query, new { techcode = techCode, firstdayoflastyear = firstDayOfLastYear, lastoflastyear = lastDayOfLastYear })
-                   .Select(x => { x.TYPE = jobType; return x; })
-                   .ToList();
+                    WHERE TECH_CODE = @techcode 
+                    AND DJ_DATE >= @oneYearBack 
+                    AND DJ_DATE <= @now
+                    AND JOB_STATUS IN ('TECH ALLOCATED', 'started')";
+
+                    var result = connection.Query<BreakdownModel>(query,
+                        new
+                        {
+                            techcode = techCode,
+                            oneYearBack = oneYearBack,
+                            now = now
+                        })
+                        .Select(x => { x.TYPE = jobType; return x; })
+                        .ToList();
 
                     return Ok(result);
-                }                
+                }
             }
             catch (Exception ex)
             {
