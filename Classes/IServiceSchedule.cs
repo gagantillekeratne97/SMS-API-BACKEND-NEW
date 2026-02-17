@@ -9,17 +9,16 @@ namespace ServvistaWebAppAPI.Classes
         Task<List<ServiceVisitMonthlyInfo>> GetMonthlyVisits(string techCode);
         Task<ScheduleResponse> UpdateServiceSchedule(
                                    int jobID,
-                                   string techCode, 
-                                   int visitNo, 
-                                   string machineRefno, 
-                                   string jobStatus, 
-                                   int? meterReadingValue, 
-                                   int? hologramNumber,     
+                                   string techCode,
+                                   int visitNo,
+                                   string machineRefno,
+                                   string jobStatus,
+                                   int? meterReadingValue,
+                                   int? hologramNumber,
                                    string solution,
                                    string solutionCategory);
         Task<List<PreviousServiceVisitModel>> GetPreviousServiceVisits(string techCode, string machineRefNo);
         Task<List<ServiceVisitMonthlyInfo>> GetTotalServiceVisits(string techCode);
         Task<List<ServiceVisitMonthlyInfo>> GetDueServiceVisits(string techCode);
-        Task UpdateServiceVisitRecall(ServiceVisitRecallModel visitRecallModel);
     }
 }

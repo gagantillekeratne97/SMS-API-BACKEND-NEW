@@ -14,24 +14,7 @@ namespace ServvistaWebAppAPI.Controllers
         public ServiceController(IServiceSchedule serviceSchedule, IConfiguration config)
         {        
             _serviceSchedule = serviceSchedule;
-        }
-
-        //PUT api/service/updatevisitrecall
-        [Authorize]
-        [HttpPost("updatevisitrecall")]
-        public IActionResult UpdateServiceVisitRecall([FromBody] ServiceVisitRecallModel model)
-        {
-            try
-            {
-                var result = _serviceSchedule.UpdateServiceVisitRecall(model);                
-                return Ok("Successfully Recall Updated.");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message);  
-            }
-        }
-
+        }        
 
         //PUT api/service/updateservicevisit?techCode={techCode}&visitno={visitno}&machinerefno={machinerefno}&jobStatus={jobstatus}
         [Authorize]

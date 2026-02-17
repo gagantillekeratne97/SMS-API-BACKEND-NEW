@@ -239,26 +239,7 @@ namespace ServvistaWebAppAPI.Services
             }
 
             return servicesdateduevisits;
-        }
-
-        //Update service visit recall function 
-        public async Task UpdateServiceVisitRecall(ServiceVisitRecallModel serviceVisitRecallModel)
-        {
-            string jobStatus = "";
-            using (SqlConnection connection = new SqlConnection(_connectionString))
-            {
-                await connection.OpenAsync();
-                bool IsOnSite = serviceVisitRecallModel.onSite;
-                if (IsOnSite)
-                {
-                    jobStatus = "started";
-                }
-                else
-                {
-                    jobStatus = "pending";
-                }                
-            }
-        }
+        }        
 
         //Get the previous visits for a machine ref 
         public async Task<List<PreviousServiceVisitModel>> GetPreviousServiceVisits(string techCode, string machineRefNo)
@@ -373,129 +354,34 @@ namespace ServvistaWebAppAPI.Services
                                                 string solution,
                                                 string? solutionCategory)
         {
-            using (SqlConnection connection = new SqlConnection(_connectionString))
+            try
             {
-                await connection.OpenAsync();
-                //Declaration of variables                 
-                string serialNo = "";
-                string customerCode = "";
-                string customerName = "";
-                string customerAdd1 = "";
-                string customerAdd2 = "";
-                string customerAdd3 = "";
-                string machineId = "";
-                string machineModel = "";
-                string techName = "";
-                string techMobile = "";
-                int serviceVisitsCount = 0;
-                bool isActive = false;
-
-                if (jobStatus == "started")
+                using (SqlConnection connection = new SqlConnection(_connectionString))
                 {
-                    string getTechMobileNo = @"SELECT MOBILE_NO FROM MTBL_TECH_OFFICERS WHERE TECH_CODE = @techcode";
-                    techMobile = await connection.QuerySingleOrDefaultAsync<string>(getTechMobileNo, new { techcode = techCode });
-                    string checkForActivityQuery = @"
-                    SELECT CASE 
-                        WHEN EXISTS (
-                            SELECT 1 
-                            FROM TBL_SCHEDULE_ACTIVITY 
-                            WHERE ROW_ID = @jobID 
-                              AND VISIT_NO = @visitNo
-                        )
-                        THEN CAST(1 AS BIT)
-                        ELSE CAST(0 AS BIT)
-                    END
-                    ";
-                    bool hasActivity = await connection.QuerySingleAsync<bool>(checkForActivityQuery, new { jobID, visitNo });
-                    if (!hasActivity)
-                    {
-                        string insertActivityQuery = @"INSERT INTO TBL_SCHEDULE_ACTIVITY    
-                        (ROW_ID, VISIT_NO, STARTED_BY, STARTED_DATE, REASON, SOLUTION_CATEGORY)
-                        VALUES 
-                        (@rowid, @visitno, @startedby, @starteddate, @solution, @solutioncategory)";
-                        await connection.ExecuteAsync(insertActivityQuery, new
-                        {
-                            rowid = jobID,
-                            visitno = visitNo,
-                            startedby = techCode,
-                            starteddate = GetSriLankanTime(), 
-                            solution = solution,
-                            solutioncategory = solutionCategory
-                        });
+                    connection.Open();
+                    //Declaration of variables 
+                    string serialNo = "";
+                    string customerCode = "";
+                    string customerName = "";
+                    string customerAdd1 = "";
+                    string customerAdd2 = "";
+                    string customerAdd3 = "";
+                    string machineId = "";
+                    string machineModel = "";
+                    string techName = "";
+                    string techMobile = "";
+                    int serviceVisitsCount = 0;
+                    bool isActive = false;
+                    string jobType = "";
 
-                        //Updating the service schedule table 
-                        string updateServiceVisitQuery = $@"
-                                    UPDATE TBL_SERVICE_SCEDULE_UPDATE
-                                    SET                     
-                                    SV{visitNo} = @visitdate,
-                                    SV{visitNo}_STATUS = @jobstatus,
-                                    SV{visitNo}_SMS = @visitdate,
-                                    SV{visitNo}_MR = @meterreading                                     
-                                    WHERE TECH_CODE = @techcode
-                                    AND MACHINE_REF = @machinerefno 
-                                    AND T_ID = @rowid
-                                    ";
-                        var updateServiceVisitResult = await connection.ExecuteAsync(updateServiceVisitQuery, new {
-                            visitdate = GetSriLankanTime(),
-                            jobstatus = jobStatus,
-                            meterreading = meterReadingValue,
-                            techcode = techCode,
-                            machinerefno = machineRefNo,
-                            rowid = jobID,
-                        });
-                    }
-                } else if (jobStatus == "COMPLETED")
-                {
-                    //check if the row is a recalled one or not 
-                    string checkForRecallIDQuery = @"
-                    SELECT 
-                        CASE 
-                         WHEN RECALL_ID IS NULL THEN CAST(0 AS BIT)
-                         ELSE CAST(1 AS BIT)
-                        END AS IsRecallExists
-                    FROM TBL_SERVICE_SCEDULE_UPDATE 
-                    WHERE T_ID = @rowid";
+                    //get tech information  
+                    string getMobileQuery = @"
+                    SELECT MOBILE_NO 
+                    FROM MTBL_TECH_OFFICERS
+                    WHERE TECH_CODE = @techcode";
 
-                    bool isRecallExists = connection.ExecuteScalar<bool>(checkForRecallIDQuery, new { rowid = jobID});
-
-                    if (isRecallExists) {
-                        string getRecallIDQuery = @"SELECT RECALL_ID FROM TBL_SERVICE_SCEDULE_UPDATE WHERE T_ID = @rowid";
-                        string recallID = connection.QuerySingle<string>(getRecallIDQuery, new { rowid = jobID});
-
-                        //Need to continue with the updating of the recall table to complete true
-                    } 
-
-                    //Updating the service schedule table
-                    string updateServiceVisitQuery = $@"
-                                    UPDATE TBL_SERVICE_SCEDULE_UPDATE
-                                    SET        
-                                    SV{visitNo} = @visitdate,
-                                    SV{visitNo}_STATUS = @jobstatus,
-                                    SV{visitNo}_SMS = @visitdate,
-                                    SV{visitNo}_MR = @meterreading                                     
-                                    WHERE TECH_CODE = @techcode
-                                    AND MACHINE_REF = @machinerefno 
-                                    AND T_ID = @rowid
-                                    ";
-                    var updateServiceVisitResult = await connection.ExecuteAsync(updateServiceVisitQuery, new
-                    {
-                        visitdate = GetSriLankanTime(),
-                        jobstatus = jobStatus,
-                        meterreading = meterReadingValue,
-                        techcode = techCode,
-                        machinerefno = machineRefNo,
-                        rowid = jobID,
-                    });
-
-                    //updating activity table
-                    string updateActivityQuery = @"UPDATE TBL_SCHEDULE_ACTIVITY SET COMPLETED_BY = @techCode,
-                    COMPLETED_DATE = @completeddate
-                    WHERE ROW_ID = @rowid AND VISIT_NO = @visitno";
-                    connection.Execute(updateActivityQuery, new { 
-                        techCode = techCode, 
-                        completeddate = GetSriLankanTime(), 
-                        rowid = jobID, 
-                        visitno = visitNo
+                    techMobile = connection.QuerySingle<string>(getMobileQuery, new { 
+                        techcode = techCode
                     });
 
                     string selectMachineQuery = @"
@@ -531,126 +417,190 @@ namespace ServvistaWebAppAPI.Services
                     int latestVisits = await CheckForLatestVisits(jobID, serialNo, serviceVisitsCount, connection);
                     int availableVisit = await AvailableLatestVisit(jobID, serialNo, serviceVisitsCount, connection);
 
-                    //Inserting record to SS Visits SMS table 
-                    string insertSSVisitSMS = @"
-                                INSERT INTO TBL_SS_VISITS_SMS
-                                (COM_ID, 
-                                MOBILE_NO, 
-                                TECH_CODE, 
-                                SERIAL_NO, 
-                                MACHINE_REF_CODE,
-                                METER_READING, 
-                                VISIT_DATE,
-                                T_STATUS, 
-                                CONFIRM_BY, 
-                                CONFIRM_DATE)
-                                VALUES (
-                                @companyid,
-                                @mobileno, 
-                                @techcode, 
-                                @serialno, 
-                                @machinerefno, 
-                                @meterreading, 
-                                @visitdate, 
-                                @tstatus, 
-                                @confirmby, 
-                                @confirmdate)";
-
-                    var insertSSVisitSMSResult = await connection.ExecuteAsync(insertSSVisitSMS, new
+                    if (jobStatus == "started")
                     {
-                        companyid = "001",
-                        mobileno = techMobile, // Mobile number can be fetched and added here
-                        techcode = techCode,
-                        serialno = serialNo,
-                        machinerefno = machineRefNo,
-                        meterreading = meterReadingValue,
-                        visitdate = GetSriLankanTime().Date,
-                        tstatus = jobStatus,
-                        confirmby = techCode,
-                        confirmdate = GetSriLankanTime().Date
-                    });
+                        //check for recall table 
+                        string RecallIDQuery = @"
+                        SELECT RECALL_ID FROM 
+                        TBL_SERVICE_SCEDULE_UPDATE
+                        WHERE T_ID = @rowid
+                        ";
 
-                    //Get the latest MeterReadingID for TBL_METER_READING table 
-                    string getLastMRID = @"SELECT ISNULL(MAX(MR_ID), 0) FROM TBL_METER_READING";
-                    int lastMRID = 0;
-                    var lastMRIDResult = await connection.QuerySingleOrDefaultAsync<int>(getLastMRID);
-                    int newmrId = lastMRIDResult + 1;
+                        int? recallID = connection.QuerySingleOrDefault<int?>(RecallIDQuery, new
+                        {
+                            rowid = jobID
+                        });
 
-                    string insertMeterReadingQuery = @"
-                                INSERT INTO TBL_METER_READING 
-                                (MR_ID, COM_ID, SERIAL_NO, MACHINE_REF_NO, CUS_ID, CUS_NAME, ADD1, ADD2, ADD3, MR_DATE, 
-                                REMARKS, MACHINE_ID, MACHINE_NAME, TECH_CODE, TECH_NAME, PURPOSE_OF_VISIT, 
-                                NO_OF_VISIT, MILAGE_START, MILAGE_END, EXPENCES, CATEGORY, 
-                                METER_TOTAL_COPY, BLACK_COPIES, COLOR_COPIES, METER_MASTER, MR_ADDED_DATE, CURRENT_SERVICE_DATE, SS_ID, SERVICES_DOC_RECIVED_DATE, 
-                                SMS_RECIVED_DATE, CR_BY)
-                                VALUES (
-                                @mrid, @companyid, @serialno, @machinerefno, @cusid, @cusname, @add1, @add2, @add3, @mrdate,
-                                @remarks, @machineid, @machinename, @techcode, @techname, @purposeofvisit,
-                                @noofvisit, @milagestart, @milageend, @expences, @category,
-                                @mertotcopy, @blackcopies, @colorcopies, @metermaster, @mradeddate, @currentservicedate, @ssid, @servicesdocreciveddate,
-                                @smsreciveddate, @crby
-                                )";
+                        if (recallID.HasValue && recallID.Value > 0)
+                        {
+                            //Update the recall table
+                            string updateRecallQuery = @"
+                            UPDATE TBL_RECALL_VISIT 
+                            SET SERVICE_STATUS = @status
+                            WHERE RECALL_ID = @recallid";
 
-                    string insertServiceVisitSolutionQuery = @"
-                                INSERT INTO TBL_SERVICE_VISIT_SOLUTION 
-                                (SERIAL_NO, MACHINE_REF_NO, TECH_CODE, TECH_NAME, JOB_ID, SOLUTION, JOB_STATUS, VISIT_NO) 
+                            connection.Execute(updateRecallQuery, new
+                            {
+                                status = jobStatus, 
+                                recallid = recallID
+                            });
+
+                            jobType = "Service Recall";
+                        }
+                        else
+                        {
+                            jobType = "Normal Service";
+                        }
+
+                        string checkForActivityQuery = @"
+                            SELECT CASE 
+                                WHEN EXISTS (
+                                    SELECT 1 
+                                    FROM TBL_SCHEDULE_ACTIVITY 
+                                    WHERE ROW_ID = @jobID 
+                                      AND VISIT_NO = @visitNo
+                                )
+                                THEN CAST(1 AS BIT)
+                                ELSE CAST(0 AS BIT)
+                            END
+                            ";
+
+                        bool hasActivity = await connection.QuerySingleAsync<bool>(checkForActivityQuery, new { jobID, visitNo });
+
+                        if (!hasActivity)
+                        {
+                            string insertActivityQuery = @"
+                                INSERT INTO TBL_SCHEDULE_ACTIVITY    
+                                (ROW_ID, VISIT_NO, STARTED_BY, STARTED_DATE, REASON, SOLUTION_CATEGORY, TYPE, IS_RECALL, RECALL_ID)
                                 VALUES 
-                                (@serialno, @machinerefno, @techcode, @techname, @jobid, @solution, @jobstatus, @visitno)";
+                                (@rowid, @visitno, @startedby, @starteddate, @solution, @solutioncategory, @type, @isrecall, @recallid)";
+                            await connection.ExecuteAsync(insertActivityQuery, new
+                            {
+                                rowid = jobID,
+                                visitno = visitNo,
+                                startedby = techCode,
+                                starteddate = GetSriLankanTime(),
+                                solution = solution,
+                                solutioncategory = solutionCategory,
+                                type = "Job recall",
+                                isrecall = true,
+                                recallid = recallID
+                            });
+                        }
 
-                    var insertServiceVisitSolutionResult = await connection.ExecuteAsync(insertServiceVisitSolutionQuery, new
+                        string updateQuery = $@"
+                            UPDATE TBL_SERVICE_SCEDULE_UPDATE
+                            SET 
+                            SV{visitNo} = @visitdate, 
+                            SV{visitNo}_STATUS = @jobstatus,
+                            SV{visitNo}_MR = @meterreading
+                            WHERE TECH_CODE = @techcode
+                            AND MACHINE_REF = @machinerefno 
+                            AND T_ID = @rowid";
+
+                        var result = connection.Execute(updateQuery, new
+                        {
+                            visitdate = GetSriLankanTime(),
+                            jobstatus = jobStatus,
+                            meterreading = meterReadingValue,
+                            techcode = techCode,
+                            machinerefno = machineRefNo,
+                            rowid = jobID
+                        });
+                    }
+                    else if (jobStatus == "COMPLETED")
                     {
-                        serialno = serialNo,
-                        machinerefno = machineRefNo,
-                        techcode = techCode,
-                        techname = techName,
-                        jobid = jobID,
-                        solution = solution,
-                        jobstatus = jobStatus,
-                        visitno = visitNo
-                    });
+                        //check for recall table 
+                        string RecallIDQuery = @"
+                        SELECT RECALL_ID FROM 
+                        TBL_SERVICE_SCEDULE_UPDATE
+                        WHERE T_ID = @rowid
+                        ";
 
-                    var insertMeterReadingResult = await connection.ExecuteAsync(insertMeterReadingQuery, new
-                    {
-                        mrid = newmrId,
-                        companyid = "001",
-                        serialno = serialNo,
-                        machinerefno = machineRefNo,
-                        cusid = customerCode,
-                        cusname = customerName,
-                        add1 = customerAdd1,
-                        add2 = customerAdd2,
-                        add3 = customerAdd3,
-                        mrdate = GetSriLankanTime().Date,
-                        remarks = solution,
-                        machineid = machineId,
-                        machinename = machineModel,
-                        techcode = techCode,
-                        techname = techName,
-                        purposeofvisit = "Service Visit",
-                        noofvisit = visitNo,
-                        milagestart = 0,
-                        milageend = meterReadingValue,
-                        expences = 0,
-                        category = "SERVICE",
-                        mertotcopy = meterReadingValue,
-                        blackcopies = 0,
-                        colorcopies = 0,
-                        metermaster = meterReadingValue,
-                        mradeddate = GetSriLankanTime().Date,
-                        currentservicedate = GetSriLankanTime().Date,
-                        ssid = jobID,
-                        servicesdocreciveddate = GetSriLankanTime().Date,
-                        smsreciveddate = GetSriLankanTime().Date,
-                        crby = techCode
-                    });
-                }                             
+                        int? recallID = connection.QuerySingleOrDefault<int?>(RecallIDQuery, new
+                        {
+                            rowid = jobID
+                        });
 
-                return new ScheduleResponse
-                {
-                    statusCode = StatusCodes.Status200OK.ToString(),
-                    errorMessage = $"Your visit has been successfully updated. Visit No {visitNo}.",
-                    isUpdate = true
+                        if (recallID.HasValue && recallID.Value > 0)
+                        {
+                            //Update the recall table
+                            string updateRecallQuery = @"
+                            UPDATE TBL_RECALL_VISIT 
+                            SET SERVICE_STATUS = @status
+                            WHERE RECALL_ID = @recallid";
+
+                            connection.Execute(updateRecallQuery, new
+                            {
+                                status = jobStatus,
+                                recallid = recallID
+                            });
+                        }
+
+                        string checkForActivityQuery = @"
+                            SELECT CASE 
+                                WHEN EXISTS (
+                                    SELECT 1 
+                                    FROM TBL_SCHEDULE_ACTIVITY 
+                                    WHERE ROW_ID = @jobID 
+                                      AND VISIT_NO = @visitNo
+                                )
+                                THEN CAST(1 AS BIT)
+                                ELSE CAST(0 AS BIT)
+                            END
+                            ";
+
+                        bool hasActivity = await connection.QuerySingleAsync<bool>(checkForActivityQuery, new { jobID, visitNo });
+
+                        if (hasActivity)
+                        {
+                            string updateActivityQuery = @"
+                            UPDATE TBL_SCHEDULE_ACTIVITY SET COMPLETED_BY = @techcode, COMPLETED_DATE = @completedate,
+                            REASON = @note, SOLUTION_CATEGORY = @solution, TYPE = @jobrecall, IS_RECALL = '1'  
+                            WHERE ROW_ID = @jobid";
+
+                            connection.Execute(updateActivityQuery, new
+                            {
+                                techcode = techCode, 
+                                completedate = GetSriLankanTime(), 
+                                note = solution, 
+                                solution = solutionCategory, 
+                                jobrecall = jobType,
+                                jobid = jobID
+                            });
+                        }
+
+                        string updateQuery = $@"
+                            UPDATE TBL_SERVICE_SCEDULE_UPDATE
+                            SET 
+                            SV{visitNo} = @visitdate, 
+                            SV{visitNo}_STATUS = @jobstatus,
+                            SV{visitNo}_MR = @meterreading
+                            WHERE TECH_CODE = @techcode
+                            AND MACHINE_REF = @machinerefno 
+                            AND T_ID = @rowid";
+
+                        var result = connection.Execute(updateQuery, new
+                        {
+                            visitdate = GetSriLankanTime(),
+                            jobstatus = jobStatus,
+                            meterreading = meterReadingValue,
+                            techcode = techCode,
+                            machinerefno = machineRefNo,
+                            rowid = jobID
+                        });
+                    }
+                }
+
+                return new ScheduleResponse { 
+                    errorMessage = "something", 
+                    isUpdate = false, 
+                    statusCode = StatusCodes.Status200OK.ToString()
                 };
+            }
+            catch (Exception ex)
+            {
+                return null;
             }
         }
 
