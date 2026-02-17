@@ -184,13 +184,13 @@ namespace ServvistaWebAppAPI.Services
                         {
                             //Updating main Daily jobs table 
                             string updateJobQuery = @"
-                        UPDATE TBL_DAILY_JOBS 
-                        SET 
-                        JOB_STATUS = @jobstatus, 
-                        STARTED_BY = @techcode, 
-                        STARTED_DATE = @starteddate
-                        WHERE DJ_ID = @jobid AND TECH_CODE = @techcode
-                        ";
+                            UPDATE TBL_DAILY_JOBS 
+                            SET 
+                            JOB_STATUS = @jobstatus, 
+                            STARTED_BY = @techcode, 
+                            STARTED_DATE = @starteddate
+                            WHERE DJ_ID = @jobid AND TECH_CODE = @techcode
+                            ";
 
                             DateTime startedDate = GetSriLankanTime();
                             await connection.ExecuteAsync(updateJobQuery, new
@@ -204,9 +204,9 @@ namespace ServvistaWebAppAPI.Services
                             int? recallID = null;
 
                             string checkForRecallQuery = @"
-                        SELECT RECALL_ID
-                        FROM TBL_DAILY_JOBS
-                        WHERE DJ_ID = @jobid";
+                            SELECT RECALL_ID
+                            FROM TBL_DAILY_JOBS
+                            WHERE DJ_ID = @jobid";
 
                             int? recallId = connection.QuerySingleOrDefault<int?>(
                                 checkForRecallQuery,
@@ -216,84 +216,25 @@ namespace ServvistaWebAppAPI.Services
                             if (recallId.HasValue && recallId.Value > 0)
                             {
                                 int actualRecallId = recallId.Value;
-                                // This is a recall job - insert into TBL_RECALL_JOBS
-                                string insertRecallQuery = @"
-                            INSERT INTO TBL_RECALL_JOBS 
-                            (
-                                RECALL_REASON, RECALL_DATE, JOB_ID, IS_RECALL, SERIAL_NO, 
-                                MACHINE_REF_NO, CUS_NAME, CUS_ADD1, CUS_ADD2, CUS_ADD3, 
-                                CUS_CONTACT, CUS_TEL_NO, TEAM_ID, TEAM_NAME, DJ_DATE, 
-                                TECH_CODE, TECH_NAME, TECH_MOBILE, MACHINE_MODEL_ID, 
-                                MACHINE_MODEL_NAME, CUS_STATUS, NOTE, JOB_STATUS, 
-                                IS_TECH_NOTIFIED, TYPE
-                            )
-                            SELECT 
-                                'Recall Job' as RECALL_REASON,
-                                @starteddate as RECALL_DATE,
-                                DJ_ID as JOB_ID,
-                                1 as IS_RECALL,
-                                SERIAL_NO,
-                                MACHINE_REF_NO,
-                                CUS_NAME,
-                                CUS_ADD1,
-                                CUS_ADD2,
-                                CUS_ADD3,
-                                CUS_CONTACT,
-                                CUS_TEL_NO,
-                                TEAM_ID,
-                                TEAM_NAME,
-                                DJ_DATE,
-                                TECH_CODE,
-                                TECH_NAME,
-                                TECH_MOBILE,
-                                MACHINE_MODEL_ID,
-                                MACHINE_MODEL_NAME,
-                                CUS_STATUS,
-                                @note as NOTE,
-                                @jobstatus as JOB_STATUS,
-                                1 as IS_TECH_NOTIFIED,
-                                'Recall' as TYPE
-                            FROM TBL_DAILY_JOBS
-                            WHERE DJ_ID = @jobid;
-            
-                            SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                                string updateRecallQuery = @"
+                                UPDATE TBL_RECALL_JOBS SET JOB_STATUS = @jobstatus
+                                WHERE JOB_ID = @jobid AND RECALL_ID = @recallid";
 
-                                // Insert and get the new RECALL_ID
-                                recallId = await connection.QuerySingleAsync<int>(insertRecallQuery, new
-                                {
-                                    starteddate = startedDate,
-                                    note = note,
-                                    jobstatus = jobStatus,
-                                    jobid = jobId
-                                });
-
-                                // 3. Update TBL_DAILY_JOBS with the new RECALL_ID
-                                string updateRecallIdQuery = @"
-                            UPDATE TBL_DAILY_JOBS 
-                            SET RECALL_ID = @recallid 
-                            WHERE DJ_ID = @jobid";
-
-                                await connection.ExecuteAsync(updateRecallIdQuery, new
-                                {
-                                    recallid = recallId,
-                                    jobid = jobId
+                                connection.Execute(updateRecallQuery, new { 
+                                    jobstatus = jobStatus, 
+                                    jobid = jobId, 
+                                    recallid = actualRecallId
                                 });
                             }
+                            string updateActivityQuery = @"
+                            UPDATE TBL_SCHEDULE_ACTIVITY 
+                            SET STARTED_BY = @techcode, STARTED_DATE = @starteddate
+                            WHERE ROW_ID = @jobid";
 
-                            string insertActivityQuery = @"
-                        INSERT INTO TBL_SCHEDULE_ACTIVITY 
-                        (ROW_ID, REASON, STARTED_BY, STARTED_DATE, SOLUTION_CATEGORY, TYPE) 
-                        VALUES 
-                        (@rowid, @reason, @startedby, @starteddate, @solutioncategory, @type)";
-
-                            await connection.ExecuteAsync(insertActivityQuery, new
-                            {
-                                rowid = jobId,
-                                reason = note,
-                                startedby = techCode,
-                                starteddate = startedDate,
-                                solutioncategory = solutionCategory,
-                                type = type
+                            connection.Execute(updateActivityQuery, new { 
+                                techcode = techCode, 
+                                startedDate = GetSriLankanTime(), 
+                                jobid = jobId
                             });
                         }
                         else if (jobStatus == "COMPLETE")
@@ -302,14 +243,14 @@ namespace ServvistaWebAppAPI.Services
 
                             //updating daily jobs table 
                             string updateJobQuery = @"
-                        UPDATE TBL_DAILY_JOBS 
-                        SET
-                        JOB_STATUS = @jobstatus, 
-                        SOLUTION_CATEGORY = @solutioncategory, 
-                        COMPLETE_SOLUTION = @note, 
-                        COMPLETE_BY = @techcode, 
-                        COMPLETED_DATE = @completeddate
-                        WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
+                            UPDATE TBL_DAILY_JOBS 
+                            SET
+                            JOB_STATUS = @jobstatus, 
+                            SOLUTION_CATEGORY = @solutioncategory, 
+                            COMPLETE_SOLUTION = @note, 
+                            COMPLETE_BY = @techcode, 
+                            COMPLETED_DATE = @completeddate
+                            WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
 
                             await connection.ExecuteAsync(updateJobQuery, new
                             {
@@ -323,9 +264,9 @@ namespace ServvistaWebAppAPI.Services
 
                             // 2. Check if RECALL_ID exists
                             string checkForRecallQuery = @"
-                        SELECT RECALL_ID
-                        FROM TBL_DAILY_JOBS
-                        WHERE DJ_ID = @jobid";
+                            SELECT RECALL_ID
+                            FROM TBL_DAILY_JOBS
+                            WHERE DJ_ID = @jobid";
 
                             int? recallId = await connection.QuerySingleOrDefaultAsync<int?>(checkForRecallQuery, new { jobid = jobId });
 
@@ -333,14 +274,14 @@ namespace ServvistaWebAppAPI.Services
                             if (recallId.HasValue && recallId.Value > 0)
                             {
                                 string updateRecallTableQuery = @"
-                            UPDATE TBL_RECALL_JOBS 
-                            SET JOB_STATUS = @jobstatus, 
+                                UPDATE TBL_RECALL_JOBS 
+                                SET JOB_STATUS = @status, 
                                 NOTE = @note 
-                            WHERE RECALL_ID = @recallid";
+                                WHERE RECALL_ID = @recallid";
 
                                 await connection.ExecuteAsync(updateRecallTableQuery, new
                                 {
-                                    jobstatus = jobStatus,
+                                    status = jobStatus,
                                     note = note,
                                     recallid = recallId.Value
                                 });
@@ -348,12 +289,12 @@ namespace ServvistaWebAppAPI.Services
 
                             // 4. Update TBL_SCHEDULE_ACTIVITY
                             string updateActivityQuery = @"
-                        UPDATE TBL_SCHEDULE_ACTIVITY 
-                        SET COMPLETED_BY = @completedby, 
-                            COMPLETED_DATE = @completeddate, 
-                            REASON = @reason, 
-                            SOLUTION_CATEGORY = @solution
-                        WHERE ROW_ID = @jobid";
+                            UPDATE TBL_SCHEDULE_ACTIVITY 
+                            SET COMPLETED_BY = @completedby, 
+                                COMPLETED_DATE = @completeddate, 
+                                REASON = @reason, 
+                                SOLUTION_CATEGORY = @solution
+                            WHERE ROW_ID = @jobid";
 
                             await connection.ExecuteAsync(updateActivityQuery, new
                             {
