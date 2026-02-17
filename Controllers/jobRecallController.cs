@@ -186,7 +186,7 @@ namespace ServvistaWebAppAPI.Controllers
             try
             {
                 string jobType = "Due";
-                DateTime now = DateTime.UtcNow;
+                DateTime now = DateTime.UtcNow.AddDays(-1);
                 DateTime oneYearBack = now.AddYears(-1);
 
                 using (SqlConnection connection = new SqlConnection(_connectionString))
