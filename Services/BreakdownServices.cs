@@ -237,7 +237,7 @@ namespace ServvistaWebAppAPI.Services
                                 jobid = jobId
                             });
                         }
-                        else if (jobStatus == "COMPLETE")
+                        else if (jobStatus == "COMPLETE" || jobStatus == "COMPLETED")
                         {
                             DateTime completeDate = GetSriLankanTime();
 
