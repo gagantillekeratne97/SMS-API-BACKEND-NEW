@@ -46,37 +46,21 @@ namespace ServvistaWebAppAPI.Controllers
         {
             try
             {
-                string customerReview = model.feedback;
+                string customerReview = model.review;
                 string customerName = model.customerName;
                 string customerMobileNo = model.mobileNo;
-                int feedbackCount = model.feedbackCount;
-                int jobID = 0;
-                int scheduleRowID = 0;
+                int feedbackCount = model.rating;
+                string jobID = "";
+                string scheduleRowID = "";
                 bool isService = false;
-                string type = "";
+                string type = model.type;                
 
-                if (model.jobId != "")
-                {
-                    jobID = int.Parse(model.jobId);
-                    isService = false;
-                    type = "job visit";
-                }
-                else if (model.rowId != "")
-                {
-                    scheduleRowID = int.Parse(model.rowId);
-                    isService = true;
-                    type = "service visit";
-                }
-                else
-                {
-                    return BadRequest("Invalid Request Data.");
-                }
-
-                if (isService == true)
+                if (type == "service")
                 {
                     //Check if the row id exists in the service schedule table
                     using (SqlConnection connection = new SqlConnection(_connectionString))
                     {
+                        scheduleRowID = model.jobId;
                         connection.Open();
                         bool isRowExists = false;
                         string checkJobExistsQuery = @"
@@ -114,9 +98,9 @@ namespace ServvistaWebAppAPI.Controllers
 
                         string insertFeedbackQuery = @"
                         INSERT INTO TBL_SV_CUSTOMER_JOB_FEEDBACKS
-                        (COM_ID, FB_DATE, MOBILE_NO, CUS_CODE, CUS_NAME, RATING, FULL_MSG, SERIAL_NO, MACHINE_REF_NO, JOB_ID, CUSTOMER_REVIEW, TYPE) 
+                        (COM_ID, FB_DATE, MOBILE_NO, CUS_CODE, CUS_NAME, RATING, FULL_MSG, SERIAL_NO, MACHINE_REF_NO, JOB_ID, CUSTOMER_REVIEW, TYPE, VISIT_NO) 
                         VALUES 
-                        ('001', @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview, @type)";
+                        ('001', @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview, @type, @visitno)";
                         var customerFeedInsertResult = connection.Execute(insertFeedbackQuery, new
                         {
                             feedbackDate = GetSriLankanTime(),
@@ -128,7 +112,8 @@ namespace ServvistaWebAppAPI.Controllers
                             machineRefNo = machineRefNo,
                             jobid = scheduleRowID,
                             customerreview = customerReview,
-                            type = type
+                            type = type,
+                            visitno = model.visitNo
                         });
                         if (customerFeedInsertResult <= 0)
                             return BadRequest("Something Went Wrong please contact IT.");
@@ -145,6 +130,7 @@ namespace ServvistaWebAppAPI.Controllers
 
                     using (SqlConnection connection = new SqlConnection(_connectionString))
                     {
+                        jobID = model.jobId;
                         connection.Open();
                         string checkJobExistsQuery = @"
                         IF EXISTS (
@@ -189,7 +175,7 @@ namespace ServvistaWebAppAPI.Controllers
                                 machineRefNo = machineRefNo,
                                 jobid = jobID,
                                 customerreview = customerReview,
-                                type = type
+                                type = type                                
                             });
                             if (customerFeedInsertResult <= 0)
                                 return BadRequest("Something Went Wrong please contact IT.");
