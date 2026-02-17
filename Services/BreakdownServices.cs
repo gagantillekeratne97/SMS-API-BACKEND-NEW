@@ -135,7 +135,7 @@ namespace ServvistaWebAppAPI.Services
                 FROM TBL_DAILY_JOBS 
                 WHERE TECH_CODE = @techcode                 
                 AND JOB_STATUS <> 'CANCELLED'
-                "; 
+                AND DJ_DATE >= @startoflastmonth AND DJ_DATE <= @startofthismonth"; 
                 var breakdowns = await connection.QueryAsync<BreakdownModel>(query, new
                 {
                     techcode = techCode,

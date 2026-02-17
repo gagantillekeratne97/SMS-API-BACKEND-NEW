@@ -179,7 +179,7 @@ namespace ServvistaWebAppAPI.Controllers
         }
 
         //GET: api/jobRecall/getAllLastYearsJobs?techCode={techCode}
-        [Authorize]
+        [Authorize] 
         [HttpGet("getAllLastYearsJobs")]
         public IActionResult GetAllLastYearJobs(string techCode)
         {

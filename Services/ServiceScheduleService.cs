@@ -200,39 +200,42 @@ namespace ServvistaWebAppAPI.Services
             {
                 connection.Open();
                 string query = @"
-                SELECT
-                    s.T_ID           AS rowId,
-                    s.CUS_ID         AS customerID,
-                    c.CUS_NAME       AS customerName,    
-                    c.CONTACT_PERSON AS contactPerson,
-                    c.TEL_NO         AS customerTelephone,
-                    s.M_LOC1         AS machineLocation01, 
-                    s.M_LOC2         AS machineLocation02, 
-                    s.M_LOC3         AS machineLocation03, 
-                    s.MACHINE_REF    AS machineRefNo,
-                    s.SERIAL_NO      AS serialNo,
-                    v.VisitNo        AS expectedVisitNo,
-                    CONVERT(char(10), v.ExpectedDate, 120) AS expectedVisitDate
-                FROM TBL_SERVICE_SCEDULE_UPDATE s
-                INNER JOIN dbo.MTBL_CUSTOMER_MASTER c
-                    ON c.CUS_CODE = s.CUS_ID
-                CROSS APPLY
-                (
-                    VALUES
-                        (1, s.SV1, s.EXPT_SV1),
-                        (2, s.SV2, s.EXPT_SV2),
-                        (3, s.SV3, s.EXPT_SV3),
-                        (4, s.SV4, s.EXPT_SV4),
-                        (5, s.SV5, s.EXPT_SV5),
-                        (6, s.SV6, s.EXPT_SV6)
-                ) v (VisitNo, ActualVisit, ExpectedDate)
-                WHERE s.TECH_CODE = @techcode
-                  AND s.IS_ACTIVE = '0'
-                  AND v.ActualVisit IS NULL                     -- not completed
-                  AND v.ExpectedDate IS NOT NULL
-                  AND v.ExpectedDate <= CAST(GETDATE() AS DATE) -- not future
-                ORDER BY s.T_ID DESC, v.VisitNo;
-                ";
+SELECT
+    s.T_ID           AS rowId,
+    s.CUS_ID         AS customerID,
+    c.CUS_NAME       AS customerName,    
+    c.CONTACT_PERSON AS contactPerson,
+    c.TEL_NO         AS customerTelephone,
+    s.M_LOC1         AS machineLocation01, 
+    s.M_LOC2         AS machineLocation02, 
+    s.M_LOC3         AS machineLocation03, 
+    s.MACHINE_REF    AS machineRefNo,
+    s.SERIAL_NO      AS serialNo,
+    v.VisitNo        AS expectedVisitNo,
+    CONVERT(char(10), v.ExpectedDate, 120) AS expectedVisitDate
+FROM TBL_SERVICE_SCEDULE_UPDATE s
+INNER JOIN dbo.MTBL_CUSTOMER_MASTER c
+    ON c.CUS_CODE = s.CUS_ID
+CROSS APPLY
+(
+    VALUES
+        (1, s.SV1, s.EXPT_SV1),
+        (2, s.SV2, s.EXPT_SV2),
+        (3, s.SV3, s.EXPT_SV3),
+        (4, s.SV4, s.EXPT_SV4),
+        (5, s.SV5, s.EXPT_SV5),
+        (6, s.SV6, s.EXPT_SV6)
+) v (VisitNo, ActualVisit, ExpectedDate)
+WHERE s.TECH_CODE = @techcode
+  AND s.IS_ACTIVE = '0'
+  AND v.ActualVisit IS NULL
+  AND v.ExpectedDate IS NOT NULL
+  AND v.ExpectedDate <= CAST(GETDATE() AS DATE)
+  AND v.ExpectedDate BETWEEN DATEADD(YEAR, -1, CAST(GETDATE() AS DATE))
+                          AND CAST(GETDATE() AS DATE)
+ORDER BY s.T_ID DESC, v.VisitNo;
+";
+
 
                 var result = connection.Query<ServiceVisitMonthlyInfo>(query, new { techcode = techCode }).ToList();
                 servicesdateduevisits = result; 
