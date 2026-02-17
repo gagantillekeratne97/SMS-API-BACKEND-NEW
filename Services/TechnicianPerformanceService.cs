@@ -40,7 +40,8 @@ namespace ServvistaWebAppAPI.Services
                 SELECT COUNT(*) AS CompletedJobs
                 FROM TBL_DAILY_JOBS 
                 WHERE TECH_CODE = @techcode
-                AND JOB_STATUS = 'COMPLETED'";
+                AND JOB_STATUS IN ('COMPLETED', 'COMPLETE')";
+
                 completedJobsCount = await connection.ExecuteScalarAsync<int>(completedJobsQuery, new { techcode = techCode });
 
                 string totalJobsQuery = @"

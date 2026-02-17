@@ -219,12 +219,12 @@ namespace ServvistaWebAppAPI.Services
                 CROSS APPLY
                 (
                     VALUES
-                        ('SV1', s.SV1, s.EXPT_SV1),
-                        ('SV2', s.SV2, s.EXPT_SV2),
-                        ('SV3', s.SV3, s.EXPT_SV3),
-                        ('SV4', s.SV4, s.EXPT_SV4),
-                        ('SV5', s.SV5, s.EXPT_SV5),
-                        ('SV6', s.SV6, s.EXPT_SV6)
+                        (1, s.SV1, s.EXPT_SV1),
+                        (2, s.SV2, s.EXPT_SV2),
+                        (3, s.SV3, s.EXPT_SV3),
+                        (4, s.SV4, s.EXPT_SV4),
+                        (5, s.SV5, s.EXPT_SV5),
+                        (6, s.SV6, s.EXPT_SV6)
                 ) v (VisitNo, ActualVisit, ExpectedDate)
                 WHERE s.TECH_CODE = @techcode
                   AND s.IS_ACTIVE = '0'
@@ -593,8 +593,8 @@ namespace ServvistaWebAppAPI.Services
                 }
 
                 return new ScheduleResponse { 
-                    errorMessage = "something", 
-                    isUpdate = false, 
+                    errorMessage = "Successfully Updated", 
+                    isUpdate = true, 
                     statusCode = StatusCodes.Status200OK.ToString()
                 };
             }
