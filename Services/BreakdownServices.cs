@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using ServvistaWebAppAPI.Classes;
 using ServvistaWebAppAPI.Models;
 using System.Data.SqlClient;
+using System.Reflection.Metadata;
 
 namespace ServvistaWebAppAPI.Services
 {
@@ -149,26 +150,22 @@ namespace ServvistaWebAppAPI.Services
         //Update Breakdown Jobs        
         public async Task UpdateJobStatus(UpdateJobModel model)
         {
-            using (SqlConnection connection = new SqlConnection(_connectionString))
+            try
             {
-                //open the connection
+                using (SqlConnection connection = new SqlConnection(_connectionString))
+                {
+                    connection.Open();
+                    int jobId = model.jobId;
+                    string machineRefNo = model.machineRefNo;
+                    string techCode = model.techCode;
+                    string note = model.Note;
+                    string jobStatus = model.jobStatus;
+                    bool isJobExists = false;
+                    string solutionCategory = model.solutionCategory;
+                    string type = "Job";
 
-                connection.Open();
-
-                //Assign variables 
-                int jobId = model.jobId;
-                string machineRefNo = model.machineRefNo;
-                string techCode = model.techCode;
-                string note = model.Note;
-                string jobStatus = "";
-                string solutionCategory = model.solutionCategory;
-                string jobType = "Job";
-
-                //get the job status 
-                jobStatus = model.jobStatus;
-
-                //check the job in the DAILY_JOBS Table 
-                string checkJobIDExists = @"
+                    //check for job exists 
+                    string checkJobIDExists = @"
                                                 SELECT 
                                                     CASE 
                                                         WHEN EXISTS (
@@ -178,144 +175,201 @@ namespace ServvistaWebAppAPI.Services
                                                         THEN CAST(1 AS BIT) 
                                                         ELSE CAST(0 AS BIT)
                                                     END AS JobExists";
-                bool IsJobExists = await connection.QuerySingleAsync<bool>(checkJobIDExists, new { techcode = techCode, jobid = jobId });
 
-                //check for recall table for job id 
-                string checkForRecallQuery = @"
-                        SELECT RECALL_ID
-                        FROM 
-                        TBL_DAILY_JOBS
-                        WHERE DJ_ID = @jobid";
+                    bool IsJobExists = await connection.QuerySingleAsync<bool>(checkJobIDExists, new { techcode = techCode, jobid = jobId });
 
-                bool isRecallExists = false;
-                var resultRecallID = connection.QuerySingle<int>(checkForRecallQuery, new { jobid = jobId });
-
-                if (resultRecallID > 0)
-                {
-                    isRecallExists = true;
-                }
-                else
-                {
-                    isRecallExists = false;
-                }
-
-                if (IsJobExists) 
-                {
-                    if (jobStatus == "COMPLETE")
+                    if (IsJobExists == true)
                     {
-                        //Update the job table 
-                        string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, 
-                        SOLUTION_CATEGORY = @solutionCategory, 
-                        COMPLETE_BY = @techcode, 
-                        COMPLETED_DATE = @completedate, 
-                        COMPLETE_SOLUTION = @note
-                        WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
-
-                        DateTime completedDate = GetSriLankanTime();
-                        await connection.ExecuteAsync(updateJobQuery, new { 
-                            jobid = jobId, 
-                            jobstatus = jobStatus, 
-                            custype = model.solutionCategory, 
-                            techcode = techCode, 
-                            completedate = completedDate, 
-                            note = model.Note 
-                        });
-
-                        //if recall true update recall table 
-                        if (isRecallExists)
+                        if (jobStatus == "started")
                         {
-                            string updateRecallTableQuery = @"
-                            UPDATE TBL_RECALL_JOBS SET JOB_STATUS = @jobstatus 
-                            WHERE RECALL_ID = @recallid";
-                        }
-
-                        //inserting the activity in TBL_SCHEDULE_ACTIVITY table 
-                        //check for activity 
-                        string checkActivityQuery = @"
-                        SELECT CASE 
-                               WHEN EXISTS (SELECT 1 FROM TBL_SCHEDULE_ACTIVTY WHERE ROW_ID = @jobid)
-                               THEN CAST(1 AS BIT)
-                               ELSE CAST(0 AS BIT)
-                               END
+                            //Updating main Daily jobs table 
+                            string updateJobQuery = @"
+                        UPDATE TBL_DAILY_JOBS 
+                        SET 
+                        JOB_STATUS = @jobstatus, 
+                        STARTED_BY = @techcode, 
+                        STARTED_DATE = @starteddate
+                        WHERE DJ_ID = @jobid AND TECH_CODE = @techcode
                         ";
-                        bool isActivityAvailable = connection.QuerySingle<bool>(checkActivityQuery, new { jobid = jobId });
-                        if (isActivityAvailable) {
-                            //Update schedule activity table
-                            string updateActivityQuery = @"
-                            UPDATE TBL_SCHEDULE_ACTIVITY SET
-                            COMPLETED_BY = @completedby, 
-                            COMPLETED_DATE = @completeddate, 
-                            REASON = @note, 
-                            SOLUTION_CATEGORY = @solution, 
-                            TYPE = @type, 
-                            WHERE ROW_ID = @jobid
-                            ";
-                            var updateResult = connection.Execute(updateActivityQuery, new { 
-                                jobid = jobId,
-                                completedby = techCode, 
-                                completeddate = completedDate, 
-                                note = note, 
-                                solution = solutionCategory, 
-                                type = jobType
-                            });                                                        
-                        } 
-                    }
-                    else if (jobStatus == "CANCELLED")
-                    {
-                        string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, CANCELLED_BY = @techcode, CANCELLED_DATE = @cancelledate
-                                                              WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
-                        DateTime cancelledDate = GetSriLankanTime();
-                        await connection.ExecuteAsync(updateJobQuery, new { 
-                            jobid = jobId, 
-                            jobstatus = jobStatus, 
-                            techcode = techCode, 
-                            cancelledate = cancelledDate 
-                        });
-                    }
-                    else
-                    {
-                        string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, CR_BY = @techcode, CR_DATE = @completedate, 
-                                                                STARTED_BY = @techcode, STARTED_DATE = @starteddate
-                                                                WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
-                        DateTime startedDate = GetSriLankanTime();
-                        await connection.ExecuteAsync(updateJobQuery, new { 
-                            jobid = jobId, 
-                            jobstatus = jobStatus,
-                            techcode = techCode, 
-                            starteddate = startedDate });
 
-                        string checkActivityQuery = @"
-                        SELECT CASE 
-                               WHEN EXISTS (SELECT 1 FROM TBL_SCHEDULE_ACTIVTY WHERE ROW_ID = @jobid)
-                               THEN CAST(1 AS BIT)
-                               ELSE CAST(0 AS BIT)
-                               END
-                        ";
-                        bool isActivityAvailable = connection.QuerySingle<bool>(checkActivityQuery, new { jobid = jobId });
-                        if (isActivityAvailable)
-                        {
-                            //Update schedule activity table
-                            string updateActivityQuery = @"
-                            UPDATE TBL_SCHEDULE_ACTIVITY SET
-                            STARTED_BY = @startedby, 
-                            STARTED_DATE = @starteddate, 
-                            REASON = @note, 
-                            SOLUTION_CATEGORY = @solution, 
-                            TYPE = @type, 
-                            WHERE ROW_ID = @jobid
-                            ";
-                            var updateResult = connection.Execute(updateActivityQuery, new
+                            DateTime startedDate = GetSriLankanTime();
+                            await connection.ExecuteAsync(updateJobQuery, new
                             {
                                 jobid = jobId,
+                                jobstatus = jobStatus,
+                                techcode = techCode,
+                                starteddate = startedDate
+                            });
+
+                            int? recallID = null;
+
+                            string checkForRecallQuery = @"
+                        SELECT RECALL_ID
+                        FROM TBL_DAILY_JOBS
+                        WHERE DJ_ID = @jobid";
+
+                            int? recallId = connection.QuerySingleOrDefault<int?>(
+                                checkForRecallQuery,
+                                new { jobid = jobId }
+                            );
+
+                            if (recallId.HasValue && recallId.Value > 0)
+                            {
+                                int actualRecallId = recallId.Value;
+                                // This is a recall job - insert into TBL_RECALL_JOBS
+                                string insertRecallQuery = @"
+                            INSERT INTO TBL_RECALL_JOBS 
+                            (
+                                RECALL_REASON, RECALL_DATE, JOB_ID, IS_RECALL, SERIAL_NO, 
+                                MACHINE_REF_NO, CUS_NAME, CUS_ADD1, CUS_ADD2, CUS_ADD3, 
+                                CUS_CONTACT, CUS_TEL_NO, TEAM_ID, TEAM_NAME, DJ_DATE, 
+                                TECH_CODE, TECH_NAME, TECH_MOBILE, MACHINE_MODEL_ID, 
+                                MACHINE_MODEL_NAME, CUS_STATUS, NOTE, JOB_STATUS, 
+                                IS_TECH_NOTIFIED, TYPE
+                            )
+                            SELECT 
+                                'Recall Job' as RECALL_REASON,
+                                @starteddate as RECALL_DATE,
+                                DJ_ID as JOB_ID,
+                                1 as IS_RECALL,
+                                SERIAL_NO,
+                                MACHINE_REF_NO,
+                                CUS_NAME,
+                                CUS_ADD1,
+                                CUS_ADD2,
+                                CUS_ADD3,
+                                CUS_CONTACT,
+                                CUS_TEL_NO,
+                                TEAM_ID,
+                                TEAM_NAME,
+                                DJ_DATE,
+                                TECH_CODE,
+                                TECH_NAME,
+                                TECH_MOBILE,
+                                MACHINE_MODEL_ID,
+                                MACHINE_MODEL_NAME,
+                                CUS_STATUS,
+                                @note as NOTE,
+                                @jobstatus as JOB_STATUS,
+                                1 as IS_TECH_NOTIFIED,
+                                'Recall' as TYPE
+                            FROM TBL_DAILY_JOBS
+                            WHERE DJ_ID = @jobid;
+            
+                            SELECT CAST(SCOPE_IDENTITY() AS INT);";
+
+                                // Insert and get the new RECALL_ID
+                                recallId = await connection.QuerySingleAsync<int>(insertRecallQuery, new
+                                {
+                                    starteddate = startedDate,
+                                    note = note,
+                                    jobstatus = jobStatus,
+                                    jobid = jobId
+                                });
+
+                                // 3. Update TBL_DAILY_JOBS with the new RECALL_ID
+                                string updateRecallIdQuery = @"
+                            UPDATE TBL_DAILY_JOBS 
+                            SET RECALL_ID = @recallid 
+                            WHERE DJ_ID = @jobid";
+
+                                await connection.ExecuteAsync(updateRecallIdQuery, new
+                                {
+                                    recallid = recallId,
+                                    jobid = jobId
+                                });
+                            }
+
+                            string insertActivityQuery = @"
+                        INSERT INTO TBL_SCHEDULE_ACTIVITY 
+                        (ROW_ID, REASON, STARTED_BY, STARTED_DATE, SOLUTION_CATEGORY, TYPE) 
+                        VALUES 
+                        (@rowid, @reason, @startedby, @starteddate, @solutioncategory, @type)";
+
+                            await connection.ExecuteAsync(insertActivityQuery, new
+                            {
+                                rowid = jobId,
+                                reason = note,
                                 startedby = techCode,
                                 starteddate = startedDate,
+                                solutioncategory = solutionCategory,
+                                type = type
+                            });
+                        }
+                        else if (jobStatus == "COMPLETE")
+                        {
+                            DateTime completeDate = GetSriLankanTime();
+
+                            //updating daily jobs table 
+                            string updateJobQuery = @"
+                        UPDATE TBL_DAILY_JOBS 
+                        SET
+                        JOB_STATUS = @jobstatus, 
+                        SOLUTION_CATEGORY = @solutioncategory, 
+                        COMPLETE_SOLUTION = @note, 
+                        COMPLETE_BY = @techcode, 
+                        COMPLETED_DATE = @completeddate
+                        WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
+
+                            await connection.ExecuteAsync(updateJobQuery, new
+                            {
+                                jobstatus = jobStatus,
+                                solutioncategory = solutionCategory,
                                 note = note,
-                                solution = solutionCategory,
-                                type = jobType
+                                techcode = techCode,
+                                completeddate = completeDate,
+                                jobid = jobId
+                            });
+
+                            // 2. Check if RECALL_ID exists
+                            string checkForRecallQuery = @"
+                        SELECT RECALL_ID
+                        FROM TBL_DAILY_JOBS
+                        WHERE DJ_ID = @jobid";
+
+                            int? recallId = await connection.QuerySingleOrDefaultAsync<int?>(checkForRecallQuery, new { jobid = jobId });
+
+                            // 3. If recall exists - Update TBL_RECALL_JOBS
+                            if (recallId.HasValue && recallId.Value > 0)
+                            {
+                                string updateRecallTableQuery = @"
+                            UPDATE TBL_RECALL_JOBS 
+                            SET JOB_STATUS = @jobstatus, 
+                                NOTE = @note 
+                            WHERE RECALL_ID = @recallid";
+
+                                await connection.ExecuteAsync(updateRecallTableQuery, new
+                                {
+                                    jobstatus = jobStatus,
+                                    note = note,
+                                    recallid = recallId.Value
+                                });
+                            }
+
+                            // 4. Update TBL_SCHEDULE_ACTIVITY
+                            string updateActivityQuery = @"
+                        UPDATE TBL_SCHEDULE_ACTIVITY 
+                        SET COMPLETED_BY = @completedby, 
+                            COMPLETED_DATE = @completeddate, 
+                            REASON = @reason, 
+                            SOLUTION_CATEGORY = @solution
+                        WHERE ROW_ID = @jobid";
+
+                            await connection.ExecuteAsync(updateActivityQuery, new
+                            {
+                                jobid = jobId,
+                                completedby = techCode,
+                                completeddate = completeDate,
+                                reason = note,
+                                solution = solutionCategory
                             });
                         }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
             }
         }
 
