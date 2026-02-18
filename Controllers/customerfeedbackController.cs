@@ -302,8 +302,7 @@ namespace ServvistaWebAppAPI.Controllers
                                    PARTITION BY SERIAL_NO
                                    ORDER BY T_ID DESC
                                ) AS rn
-                        FROM dbo.TBL_SERVICE_SCEDULE_UPDATE
-                        WHERE IS_ACTIVE = 1
+                        FROM dbo.TBL_SERVICE_SCEDULE_UPDATE                        
                     )
                     SELECT
                         s.T_ID                AS rowId,
