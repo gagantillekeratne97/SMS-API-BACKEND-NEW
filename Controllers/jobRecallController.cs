@@ -197,7 +197,7 @@ namespace ServvistaWebAppAPI.Controllers
                     WHERE TECH_CODE = @techcode 
                     AND DJ_DATE >= @oneYearBack 
                     AND DJ_DATE <= @now
-                    AND JOB_STATUS IN ('TECH ALLOCATED', 'started')";
+                    AND JOB_STATUS IN ('TECH ALLOCATED')";
 
                     var result = connection.Query<BreakdownModel>(query,
                         new

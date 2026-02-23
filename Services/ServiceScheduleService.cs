@@ -6,8 +6,11 @@ using ServvistaWebAppAPI.Models;
 using System.ComponentModel;
 using System.Data.SqlClient;
 using System.Diagnostics.CodeAnalysis;
+using System.Net;
 using System.Reflection.PortableExecutable;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace ServvistaWebAppAPI.Services
@@ -226,15 +229,12 @@ CROSS APPLY
         (5, s.SV5, s.EXPT_SV5),
         (6, s.SV6, s.EXPT_SV6)
 ) v (VisitNo, ActualVisit, ExpectedDate)
-WHERE s.TECH_CODE = @techcode
-  AND s.IS_ACTIVE = '0'
+WHERE s.TECH_CODE = @techCode 
   AND v.ActualVisit IS NULL
   AND v.ExpectedDate IS NOT NULL
-  AND v.ExpectedDate <= CAST(GETDATE() AS DATE)
   AND v.ExpectedDate BETWEEN DATEADD(YEAR, -1, CAST(GETDATE() AS DATE))
-                          AND CAST(GETDATE() AS DATE)
-ORDER BY s.T_ID DESC, v.VisitNo;
-";
+                          AND EOMONTH(DATEADD(MONTH, -1, GETDATE()))
+ORDER BY s.T_ID DESC, v.VisitNo;";
 
 
                 var result = connection.Query<ServiceVisitMonthlyInfo>(query, new { techcode = techCode }).ToList();
@@ -513,6 +513,7 @@ ORDER BY s.T_ID DESC, v.VisitNo;
                     }
                     else if (jobStatus == "COMPLETED")
                     {
+                        string customerMobileNo = "";
                         //check for recall table 
                         string RecallIDQuery = @"
                         SELECT RECALL_ID FROM 
@@ -592,6 +593,38 @@ ORDER BY s.T_ID DESC, v.VisitNo;
                             machinerefno = machineRefNo,
                             rowid = jobID
                         });
+
+                        //Send customer a SMS after completing the Service jobs 
+                        visitNo = visitNo - 1;
+                        string feedbackLink = $"https://servvistagcp-001-site15.anytempurl.com/customer-feedback-machines/{serialNo}/service/{jobID}?visitNo={visitNo}";
+
+                        //Get customer mobile No 
+                        string getCutomerMobileQuery = @"
+                        SELECT CM.MOBILE_NO AS CUS_SMS_NO, SS.SERIAL_NO AS SERIAL_NO
+                        FROM TBL_SERVICE_SCEDULE_UPDATE SS
+                        INNER JOIN MTBL_CUSTOMER_MASTER CM
+                        ON SS.CUS_ID = CM.CUS_CODE
+                        WHERE SS.T_ID = @jobid";
+
+                        var customerMobileNoInfo = connection.QuerySingle<JobFeedbackModelVM>(getCutomerMobileQuery, new
+                        {
+                            jobid = jobID,
+                        });
+
+                        //send sms 
+                        if (customerMobileNoInfo != null)
+                        {
+                            if (!string.IsNullOrEmpty(customerMobileNoInfo.CUS_SMS_NO) && customerMobileNoInfo.CUS_SMS_NO.StartsWith("0"))
+                            {
+                                customerMobileNo = "94" + customerMobileNoInfo.CUS_SMS_NO.Substring(1);
+                            }
+                            else
+                            {
+                                customerMobileNo = "94" + customerMobileNoInfo.CUS_SMS_NO;
+                            }
+                        }
+
+                        await SendSMS(customerMobileNo, feedbackLink);
                     }
                 }
 
@@ -604,6 +637,69 @@ ORDER BY s.T_ID DESC, v.VisitNo;
             catch (Exception ex)
             {
                 return null;
+            }
+        }
+
+        //Send a SMS to customer after service has been done 
+        //Calculate hash password 
+        private string CalculatedMD5Hash(string input)
+        {
+            using (MD5 md5 = MD5.Create())
+            {
+                byte[] inputBytes = Encoding.UTF8.GetBytes(input);
+                byte[] hashBytes = md5.ComputeHash(inputBytes);
+
+                StringBuilder sb = new StringBuilder();
+
+                for (int i = 0; i < hashBytes.Length; i++)
+                {
+                    sb.Append(hashBytes[i].ToString("x2")); // Convert each byte to a two-digit hexadecimal representation
+                }
+
+                return sb.ToString();
+            }
+        }
+
+        //SMS Sending function for customer link 
+        private async Task SendSMS(string mobileNumber, string feedbackLink)
+        {
+            string password = "vo*&78HK";
+            string md5Hash = CalculatedMD5Hash(password);
+            DateTime now = GetSriLankanTime();
+            string CREATED = now.ToString("yyyy-MM-ddTHH:mm:ss");
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+            using (HttpClient httpClient = new HttpClient())
+            {
+                string message = $"Dear Customer, thank you for choosing us. Please rate our service and share your feedback here: {feedbackLink}. Your feedback is highly appreciated.";
+                string jsonData = $@"
+                {{
+                    ""messages"": [
+                        {{
+                            ""clientRef"": ""7945695"",
+                            ""number"": ""{mobileNumber}"",
+                            ""mask"": ""0777701155"",
+                            ""text"": ""{message}"",
+                            ""campaignName"": ""Test""
+                        }}
+                    ]
+                }}";
+                string apiUrl = "https://richcommunication.dialog.lk/api/sms/send";
+                httpClient.DefaultRequestHeaders.Add("USER", "gest_user");
+                httpClient.DefaultRequestHeaders.Add("DIGEST", md5Hash);
+                httpClient.DefaultRequestHeaders.Add("CREATED", CREATED);
+
+                // Create a StringContent object from the JSON data
+                StringContent content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+                try
+                {
+                    // Send the POST request and get the response
+                    var response = httpClient.PostAsync(apiUrl, content).Result.Content.ReadAsStringAsync();
+                    string responseString = response.Result;
+                }
+                catch (Exception ex)
+                {
+                    throw;
+                }
             }
         }
 
@@ -924,6 +1020,7 @@ ORDER BY s.T_ID DESC, v.VisitNo;
                     s.M_LOC2      AS machineLocation02, 
                     s.M_LOC3      AS machineLocation03, 
                     s.MACHINE_REF AS machineRefNo,
+                    s.M_MODEL AS machineModel,
                     s.SERIAL_NO   AS serialNo,
                     v.VisitNo     AS expectedVisitNo,
                     CONVERT(char(10), v.ExpectedDate, 120) AS expectedVisitDate,

@@ -53,7 +53,7 @@ namespace ServvistaWebAppAPI.Controllers
             catch (Exception ex)
             {
                 return BadRequest(ex.Message); 
-            }
+            }            
         }        
 
         //api/breakdown/getperformance

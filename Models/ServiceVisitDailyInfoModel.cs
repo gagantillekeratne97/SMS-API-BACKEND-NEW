@@ -17,6 +17,7 @@
         public DateTime expectedVisitDate { get; set; }
         public int expectedVisitCount { get; set; }
         public string VisitStatus { get; set; }
+        public string machineModel { get; set; }
         public int RowId { get; set; } 
         public string customerID  { get; set; }
         public string customerName { get; set; } 

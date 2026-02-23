@@ -3,7 +3,12 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using ServvistaWebAppAPI.Classes;
 using ServvistaWebAppAPI.Models;
 using System.Data.SqlClient;
+using System.Net;
+using System.Net.Http;
+using System.Reflection;
 using System.Reflection.Metadata;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace ServvistaWebAppAPI.Services
 {
@@ -163,6 +168,7 @@ namespace ServvistaWebAppAPI.Services
                     bool isJobExists = false;
                     string solutionCategory = model.solutionCategory;
                     string type = "Job";
+                    string customerMobileNumber = "";
 
                     //check for job exists 
                     string checkJobIDExists = @"
@@ -238,7 +244,7 @@ namespace ServvistaWebAppAPI.Services
                             });
                         }
                         else if (jobStatus == "COMPLETE" || jobStatus == "COMPLETED")
-                        {
+                        {                            
                             DateTime completeDate = GetSriLankanTime();
 
                             //updating daily jobs table 
@@ -304,6 +310,30 @@ namespace ServvistaWebAppAPI.Services
                                 reason = note,
                                 solution = solutionCategory
                             });
+
+                            //Getting the customer Mobile Number  
+                            string customerMobileNoQuery = @"
+                            SELECT CUS_SMS_NO, SERIAL_NO 
+                            FROM TBL_DAILY_JOBS 
+                            WHERE DJ_ID = @jobid";
+
+                            var customerFeedBackInfo = connection.QuerySingle<JobFeedbackModelVM>(customerMobileNoQuery, new { jobid = jobId });
+
+                            if (customerFeedBackInfo != null)
+                            {
+                                if (!string.IsNullOrEmpty(customerFeedBackInfo.CUS_SMS_NO) && customerFeedBackInfo.CUS_SMS_NO.StartsWith("0"))
+                                {
+                                    customerMobileNumber = "94" + customerFeedBackInfo.CUS_SMS_NO.Substring(1);
+                                }
+                                else
+                                {
+                                    customerMobileNumber = "94" + customerFeedBackInfo.CUS_SMS_NO;
+                                }
+                            }                            
+
+                            string feedbackLink = $"https://servvistagcp-001-site15.anytempurl.com/customer-feedback-machines/{customerFeedBackInfo.SERIAL_NO}/job/{jobId}";
+                            //Send a message to the customer sending the link for customer feedback
+                            await SendSMS(customerMobileNumber, feedbackLink);
                         }
                     }
                 }
@@ -314,59 +344,67 @@ namespace ServvistaWebAppAPI.Services
             }
         }
 
-        //public async Task UpdateJobStatus(UpdateJobModel model)
-        //{
-        //    using (SqlConnection connection = new SqlConnection(_connectionString))
-        //    {
-        //        int jobId = model.jobId; 
-        //        string machineRefNo = model.machineRefNo;
-        //        string techCode = model.techCode;
-        //        string note = model.Note; 
-        //        string jobStatus = ""; 
+        //Calculate hash password 
+        private string CalculatedMD5Hash(string input)
+        {
+            using (MD5 md5 = MD5.Create())
+            {
+                byte[] inputBytes = Encoding.UTF8.GetBytes(input);
+                byte[] hashBytes = md5.ComputeHash(inputBytes);
 
-        //        connection.Open();         
+                StringBuilder sb = new StringBuilder();
 
-        //        jobStatus = model.jobStatus;
+                for (int i = 0; i < hashBytes.Length; i++)
+                {
+                    sb.Append(hashBytes[i].ToString("x2")); // Convert each byte to a two-digit hexadecimal representation
+                }
 
-        //        string checkJobIDExists = @"
-        //                                SELECT 
-        //                                    CASE 
-        //                                        WHEN EXISTS (
-        //                                        SELECT 1 FROM TBL_DAILY_JOBS 
-        //                                        WHERE DJ_ID = @jobid AND TECH_CODE = @techcode
-        //                                        )
-        //                                        THEN CAST(1 AS BIT) 
-        //                                        ELSE CAST(0 AS BIT)
-        //                                    END AS JobExists";
-        //        bool IsJobExists = await connection.QuerySingleAsync<bool>(checkJobIDExists, new { techcode = techCode, jobid = jobId});
+                return sb.ToString();
+            }
+        }
 
-        //        if (IsJobExists) 
-        //        {
-        //            if (jobStatus == "COMPLETE")
-        //            {
-        //                //This is updated
-        //                string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, SOLUTION_CATEGORY = @custype, COMPLETE_BY = @techcode, COMPLETED_DATE = @completedate, COMPLETE_SOLUTION = @note
-        //                                      WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
-        //                DateTime completeDate = GetSriLankanTime();
-        //                await connection.ExecuteAsync(updateJobQuery, new { jobid = jobId, jobstatus = jobStatus, custype = model.solutionCategory, techcode = techCode, completedate = completeDate, note = model.Note});
-        //            } else if (jobStatus == "CANCELLED") 
-        //            {
-        //                string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, CANCELLED_BY = @techcode, CANCELLED_DATE = @cancelledate
-        //                                      WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
-        //                DateTime completeDate = GetSriLankanTime();
-        //                await connection.ExecuteAsync(updateJobQuery, new { jobid = jobId, jobstatus = jobStatus, techcode = techCode, cancelledate = completeDate });
-        //            }
-        //            else
-        //            {
-        //                string updateJobQuery = @"UPDATE TBL_DAILY_JOBS SET JOB_STATUS = @jobstatus, CR_BY = @techcode, CR_DATE = @completedate, 
-        //                                        STARTED_BY = @techcode, STARTED_DATE = @completedate
-        //                                        WHERE DJ_ID = @jobid AND TECH_CODE = @techcode";
-        //                DateTime completeDate = GetSriLankanTime();
-        //                await connection.ExecuteAsync(updateJobQuery, new { jobid = jobId, jobstatus = jobStatus, techcode = techCode, completedate = completeDate });
-        //            }
-        //        }
-        //    }
-        //}
+        //SMS Sending function for customer link 
+        private async Task SendSMS(string mobileNumber, string feedbackLink)
+        {
+            string password = "vo*&78HK";
+            string md5Hash = CalculatedMD5Hash(password);
+            DateTime now = GetSriLankanTime();
+            string CREATED = now.ToString("yyyy-MM-ddTHH:mm:ss");
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | SecurityProtocolType.Tls13;
+            using (HttpClient httpClient = new HttpClient())
+            {                
+                string message = $"Dear Customer, thank you for choosing us. Please rate our service and share your feedback here: {feedbackLink}. Your feedback is highly appreciated.";
+                string jsonData = $@"
+                {{
+                    ""messages"": [
+                        {{
+                            ""clientRef"": ""7945695"",
+                            ""number"": ""{mobileNumber}"",
+                            ""mask"": ""0777701155"",
+                            ""text"": ""{message}"",
+                            ""campaignName"": ""Test""
+                        }}
+                    ]
+                }}";
+                string apiUrl = "https://richcommunication.dialog.lk/api/sms/send";
+                httpClient.DefaultRequestHeaders.Add("USER", "gest_user");
+                httpClient.DefaultRequestHeaders.Add("DIGEST", md5Hash);
+                httpClient.DefaultRequestHeaders.Add("CREATED", CREATED);
+
+                // Create a StringContent object from the JSON data
+                StringContent content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+                try
+                {
+                    // Send the POST request and get the response
+                    var response = httpClient.PostAsync(apiUrl, content).Result.Content.ReadAsStringAsync();
+                    string responseString = response.Result;
+                }
+                catch (Exception ex)
+                {
+                    throw;
+                }
+            }
+        }
 
         public async Task<List<BreakdownModel>> GetCompleteLists(string techCode)
         {
@@ -394,4 +432,10 @@ namespace ServvistaWebAppAPI.Services
             return breakdownModels; 
         }
     }
+}
+
+public class JobFeedbackModelVM
+{
+    public string SERIAL_NO { get; set; }
+    public string CUS_SMS_NO { get; set; }
 }
