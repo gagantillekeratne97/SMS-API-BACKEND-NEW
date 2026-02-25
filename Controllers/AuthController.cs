@@ -1,9 +1,11 @@
 ﻿using Dapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ServvistaWebAppAPI.Classes;
 using ServvistaWebAppAPI.Models;
+using ServvistaWebAppAPI.Services;
 using System.Data.SqlClient;
 
 namespace ServvistaWebAppAPI.Controllers
@@ -16,21 +18,24 @@ namespace ServvistaWebAppAPI.Controllers
         private readonly UserRepository _repo;
         private readonly JwtTokenService _jwt;
         public string _connectionString;
-        private readonly IConfiguration _config; 
-
-        public AuthController(UserRepository repo, JwtTokenService jwt)
+        private readonly IConfiguration _config;
+        private readonly ITenantService _tenantService; 
+        public AuthController(UserRepository repo, JwtTokenService jwt, ITenantService tenantService)
         {
             _connectionString = _config.GetConnectionString("DefaultConnection");
             _repo = repo;
             _jwt = jwt;
-        }    
+            _tenantService = tenantService;
+        }
 
+        [Authorize]
         [HttpPost("resetPassword")]
         public IActionResult ResetPassword(string techCode, [FromBody] string newPassword)
         {
             try
-            {
-                string connectionString = @"Data Source=sql5079.site4now.net;Initial Catalog=DB_A67CC4_Servvistagcp;User ID=DB_A67CC4_Servvistagcp_admin;Password=Ssg789.541351;";
+            {                
+                string connectionString = _tenantService.GetConnectionString();
+                //string connectionString = @"Data Source=sql5079.site4now.net;Initial Catalog=DB_A67CC4_Servvistagcp;User ID=DB_A67CC4_Servvistagcp_admin;Password=Ssg789.541351;";
                 var hashedPassword = PasswordHasher.Hash(newPassword);
                 using (SqlConnection connection = new SqlConnection(connectionString))
                 {
@@ -61,12 +66,12 @@ namespace ServvistaWebAppAPI.Controllers
         {
             // 1️⃣ Try machine login first
             var machineTransaction =
-                await _repo.GetCustomerInfoBySerial(request.SERIAL_NO);
+                await _repo.GetCustomerInfoBySerial(request.SERIAL_NO, request.companyID);
 
             // 2️⃣ If machine not found, try tech login
             var techInformation =
                 machineTransaction == null
-                    ? await _repo.GetByUserNameAsync(request.TECH_CODE)
+                    ? await _repo.GetByUserNameAsync(request.TECH_CODE, request.companyID)
                     : null;
 
             // 3️⃣ If neither exists → invalid credentials
@@ -94,7 +99,7 @@ namespace ServvistaWebAppAPI.Controllers
                 }
 
                 (token, expiresAt) =
-                    _jwt.GenerateToken(techInformation.TECH_CODE);
+                    _jwt.GenerateToken(techInformation.TECH_CODE, request.companyID);
 
                 var refreshToken = _jwt.GenerateRefreshToken(techInformation.TECH_CODE).Token;                
 

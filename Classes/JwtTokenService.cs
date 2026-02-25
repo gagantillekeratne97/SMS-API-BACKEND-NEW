@@ -47,11 +47,12 @@ namespace ServvistaWebAppAPI.Classes
             return (new JwtSecurityTokenHandler().WriteToken(token), expiryMinutes);
         }
 
-        public (string token, DateTime expirationAt) GenerateToken(string techCode)
+        public (string token, DateTime expirationAt) GenerateToken(string techCode, string companyID)
         {
             var claims = new[]
             {
-                new Claim(ClaimTypes.Name, techCode)
+                new Claim(ClaimTypes.Name, techCode),
+                new Claim("company", companyID)
             };
 
             var key = new SymmetricSecurityKey(

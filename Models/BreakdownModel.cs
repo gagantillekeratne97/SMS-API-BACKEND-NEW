@@ -1,7 +1,7 @@
 ﻿namespace ServvistaWebAppAPI.Models
 {
     public class BreakdownModel
-    {
+    {        
         public string DJ_ID { get; set; } 
         public string SERIAL_NO {  get; set; } 
         public string MACHINE_REF_NO { get; set; }         

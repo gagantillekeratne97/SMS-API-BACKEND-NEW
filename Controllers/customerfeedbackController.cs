@@ -61,6 +61,16 @@ namespace ServvistaWebAppAPI.Controllers
                     using (SqlConnection connection = new SqlConnection(_connectionString))
                     {
                         scheduleRowID = model.jobId;
+
+                        //get the techcode of the technician using the TBL_SERVICE_SCEDULE_UPDATE
+                        string techCode = "";
+                        string techCodeQuery = @"
+                        SELECT TECH_CODE 
+                        FROM TBL_SCEDULE_UPDATE
+                        WHERE T_ID = @jobid";
+
+                        techCode = connection.QuerySingleOrDefault<string>(techCodeQuery, new { jobid = scheduleRowID });
+
                         connection.Open();
                         bool isRowExists = false;
                         string checkJobExistsQuery = @"
@@ -98,9 +108,9 @@ namespace ServvistaWebAppAPI.Controllers
 
                         string insertFeedbackQuery = @"
                         INSERT INTO TBL_SV_CUSTOMER_JOB_FEEDBACKS
-                        (COM_ID, FB_DATE, MOBILE_NO, CUS_CODE, CUS_NAME, RATING, FULL_MSG, SERIAL_NO, MACHINE_REF_NO, JOB_ID, CUSTOMER_REVIEW, TYPE, VISIT_NO) 
+                        (COM_ID, FB_DATE, MOBILE_NO, CUS_CODE, CUS_NAME, RATING, FULL_MSG, SERIAL_NO, MACHINE_REF_NO, JOB_ID, CUSTOMER_REVIEW, TYPE, VISIT_NO, TECH_CODE) 
                         VALUES 
-                        ('001', @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview, @type, @visitno)";
+                        ('001', @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview, @type, @visitno, @techcode)";
                         var customerFeedInsertResult = connection.Execute(insertFeedbackQuery, new
                         {
                             feedbackDate = GetSriLankanTime(),
@@ -113,7 +123,8 @@ namespace ServvistaWebAppAPI.Controllers
                             jobid = scheduleRowID,
                             customerreview = customerReview,
                             type = type,
-                            visitno = model.visitNo
+                            visitno = model.visitNo, 
+                            techcode = techCode
                         });
                         if (customerFeedInsertResult <= 0)
                             return BadRequest("Something Went Wrong please contact IT.");
@@ -132,6 +143,16 @@ namespace ServvistaWebAppAPI.Controllers
                     {
                         jobID = model.jobId;
                         connection.Open();
+
+                        //Get tech code 
+                        string techCode = "";
+                        string techCodeQuery = @"
+                        SELECT TECH_CODE 
+                        FROM TBL_DAILY_JOBS 
+                        WHERE DJ_ID = @jobid";
+
+                        techCode = connection.QuerySingleOrDefault<string>(techCodeQuery, new { jobid = jobID });
+
                         string checkJobExistsQuery = @"
                         IF EXISTS (
                             SELECT 1
@@ -148,9 +169,9 @@ namespace ServvistaWebAppAPI.Controllers
                         {
                             //If the job exists, get the serial number and machine reference number
                             string getJobDetailsQuery = @"
-                        SELECT SERIAL_NO, MACHINE_REF_NO
-                        FROM TBL_DAILY_JOBS
-                        WHERE DJ_ID = @jobid";
+                            SELECT SERIAL_NO, MACHINE_REF_NO
+                            FROM TBL_DAILY_JOBS
+                            WHERE DJ_ID = @jobid";
                             var jobDetails = connection.QuerySingleOrDefault(getJobDetailsQuery, new { jobid = jobID });
                             if (jobDetails != null)
                             {
@@ -160,10 +181,10 @@ namespace ServvistaWebAppAPI.Controllers
 
                             //Insert the customer feedback into the TBL_CUSTOMER_FEEDBACK table
                             string insertFeedbackQuery = @"
-                        INSERT INTO TBL_SV_CUSTOMER_JOB_FEEDBACKS
-                        (COM_ID, FB_DATE, MOBILE_NO, CUS_CODE, CUS_NAME, RATING, FULL_MSG, SERIAL_NO, MACHINE_REF_NO, JOB_ID, CUSTOMER_REVIEW, TYPE) 
-                        VALUES 
-                        ('001', @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview, @type)";
+                            INSERT INTO TBL_SV_CUSTOMER_JOB_FEEDBACKS
+                            (COM_ID, FB_DATE, MOBILE_NO, CUS_CODE, CUS_NAME, RATING, FULL_MSG, SERIAL_NO, MACHINE_REF_NO, JOB_ID, CUSTOMER_REVIEW, TYPE, TECH_CODE) 
+                            VALUES 
+                            ('001', @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview, @type, @techcode)";
                             var customerFeedInsertResult = connection.Execute(insertFeedbackQuery, new
                             {
                                 feedbackDate = GetSriLankanTime(),
@@ -175,7 +196,8 @@ namespace ServvistaWebAppAPI.Controllers
                                 machineRefNo = machineRefNo,
                                 jobid = jobID,
                                 customerreview = customerReview,
-                                type = type                                
+                                type = type, 
+                                techcode = techCode
                             });
                             if (customerFeedInsertResult <= 0)
                                 return BadRequest("Something Went Wrong please contact IT.");

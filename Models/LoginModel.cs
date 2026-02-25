@@ -5,5 +5,6 @@
         public string? TECH_CODE { get; set; }
         public string? SERIAL_NO { get; set; }
         public string Password { get; set; } 
+        public string companyID { get; set; }
     }
 }

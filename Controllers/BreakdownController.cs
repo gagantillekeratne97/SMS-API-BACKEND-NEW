@@ -6,6 +6,7 @@ using Dapper;
 using ServvistaWebAppAPI.Models;
 using ServvistaWebAppAPI.Classes;
 using System.Threading.Tasks;
+using ServvistaWebAppAPI.Services;
 
 namespace ServvistaWebAppAPI.Controllers
 {    
@@ -15,13 +16,14 @@ namespace ServvistaWebAppAPI.Controllers
     {
         private readonly string connectionString;
         private readonly ITechnicianPerformanceService _performanceService;
-        private readonly IBreakdownServices _breakdownServices; 
+        private readonly IBreakdownServices _breakdownServices;
+        private readonly ITenantService _tenantService; 
 
-        public BreakdownController(IConfiguration config, ITechnicianPerformanceService performanceService, IBreakdownServices breakdownServices)
-        {
-            connectionString = config.GetConnectionString("DefaultConnection");
+        public BreakdownController(IConfiguration config, ITechnicianPerformanceService performanceService, IBreakdownServices breakdownServices, ITenantService tenantService)
+        {            
             _performanceService = performanceService;
-            _breakdownServices = breakdownServices; 
+            _breakdownServices = breakdownServices;
+            _tenantService = tenantService;
         }
 
         //GET: api/breakdown/solutionCategories
@@ -30,7 +32,7 @@ namespace ServvistaWebAppAPI.Controllers
         public async Task<IActionResult> GetSolutionCategories()
         {
             try
-            {
+            {                
                 var result = await _breakdownServices.GetSolutionCategoriesAsync();
                 return Ok(result); 
             }

@@ -14,10 +14,12 @@ namespace ServvistaWebAppAPI.Services
 {
     public class BreakdownServices : IBreakdownServices
     {
-        private readonly string _connectionString; 
-        public BreakdownServices(IConfiguration config)
+        private readonly string _connectionString;
+        private readonly ITenantService _tenantService;
+        public BreakdownServices(IConfiguration config, ITenantService tenantService)
         {
-            _connectionString = config.GetConnectionString("DefaultConnection");
+            _tenantService = tenantService;
+            _connectionString = _tenantService.GetConnectionString();            
         }                
 
         private DateTime GetSriLankanTime()

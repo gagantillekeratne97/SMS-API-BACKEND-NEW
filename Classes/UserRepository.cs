@@ -6,14 +6,26 @@ namespace ServvistaWebAppAPI.Classes
 {
     public class UserRepository
     {
-        private readonly string _connectionString; 
+        public string _connectionString;
+        public IConfiguration _config; 
         public UserRepository(IConfiguration config)
         {
             _connectionString = config.GetConnectionString("DefaultConnection");
+            _config = config;
         }
 
-        public async Task<TBL_MACHINE_TRANSACTION> GetCustomerInfoBySerial(string serialNo)
+        public async Task<TBL_MACHINE_TRANSACTION> GetCustomerInfoBySerial(string serialNo, string companyID)
         {
+            switch (companyID)
+            {
+                case "001":
+                    _connectionString = _config.GetConnectionString("DefaultConnection");
+                    break;
+                case "002":
+                    _connectionString = _config.GetConnectionString("FintekConnection");
+                    break;
+            }
+
             using (SqlConnection connection = new SqlConnection(_connectionString))
             {
                 connection.Open();
@@ -25,8 +37,19 @@ namespace ServvistaWebAppAPI.Classes
             }
         }
 
-        public async Task<MTBL_TECH_OFFICERS> GetByUserNameAsync(string techCode)
+        public async Task<MTBL_TECH_OFFICERS> GetByUserNameAsync(string techCode, string companyID)
         {
+            switch (companyID)
+            {
+                case "001":
+                    _connectionString = _config.GetConnectionString("DefaultConnection");
+                    break;
+                    case "002":
+                        _connectionString = _config.GetConnectionString("FintekConnection");
+                    break;
+                default:
+                    break;
+            }
             const string query = @"
             SELECT COM_ID, TECH_CODE, TECH_NAME, MOBILE_NO, EMAIL, AREA, CITY, IS_ACTIVE, PASSWORD_HASH
             FROM MTBL_TECH_OFFICERS WHERE TECH_CODE = @techcode";

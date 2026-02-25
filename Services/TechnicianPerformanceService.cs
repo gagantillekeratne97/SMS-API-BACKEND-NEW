@@ -10,9 +10,11 @@ namespace ServvistaWebAppAPI.Services
     public class TechnicianPerformanceService : ITechnicianPerformanceService
     {
         private readonly string _connectionString; 
-        public TechnicianPerformanceService(IConfiguration config)
-        {
-            _connectionString = config.GetConnectionString("DefaultConnection");
+        private readonly ITenantService _tenantService;
+        public TechnicianPerformanceService(IConfiguration config, ITenantService tenantService)
+        {            
+            _tenantService = tenantService;
+            _connectionString = _tenantService.GetConnectionString();   
         }
 
         public async Task<TechnicianPerformanceModel> GetPerformanceAsync(string techCode)

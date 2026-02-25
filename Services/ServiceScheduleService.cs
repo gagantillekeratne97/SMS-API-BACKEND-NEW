@@ -17,10 +17,12 @@ namespace ServvistaWebAppAPI.Services
 {
     public class ServiceScheduleService : IServiceSchedule
     {
-        private readonly string _connectionString; 
-        public ServiceScheduleService(IConfiguration config)
+        private readonly string _connectionString;
+        private readonly ITenantService _tenantService;
+        public ServiceScheduleService(IConfiguration config, ITenantService tenantService)
         {
-            _connectionString = config.GetConnectionString("DefaultConnection");
+            _tenantService = tenantService;
+            _connectionString = _tenantService.GetConnectionString();
         }
         private DateTime GetSriLankanTime()
         {

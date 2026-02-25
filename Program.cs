@@ -52,6 +52,8 @@ builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<ITechnicianPerformanceService, TechnicianPerformanceService>();
 builder.Services.AddScoped<IBreakdownServices, BreakdownServices>();
 builder.Services.AddScoped<IServiceSchedule, ServiceScheduleService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ITenantService, TenantService>();
 
 // --------------------
 // Authentication (JWT + SignalR)

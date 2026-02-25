@@ -14,6 +14,7 @@ namespace ServvistaWebAppAPI.Services
         private readonly IConfiguration _configuration;
         private readonly IServiceProvider _serviceProvider; 
         private readonly IHubContext<NotificationHub> _hubContext;
+        //private readonly ITenantService _tenantService;        
 
         public TechNotificationBackgroundService(
                                                 ILogger<TechNotificationBackgroundService> logger, 
@@ -24,7 +25,7 @@ namespace ServvistaWebAppAPI.Services
             _logger = logger;
             _configuration = configuration;
             _serviceProvider = serviceProvider;
-            _hubContext = hubContext;
+            _hubContext = hubContext;            
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
