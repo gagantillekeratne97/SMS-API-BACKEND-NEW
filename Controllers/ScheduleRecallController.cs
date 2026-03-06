@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ServvistaWebAppAPI.Models;
+using ServvistaWebAppAPI.Services;
 using System.Data.SqlClient;
 
 namespace ServvistaWebAppAPI.Controllers
@@ -11,10 +12,11 @@ namespace ServvistaWebAppAPI.Controllers
     [ApiController]
     public class ScheduleRecallController : ControllerBase
     {
-        private readonly string _connectionString;  
-        public ScheduleRecallController(IConfiguration configuration)
+        private readonly string _connectionString;
+        private readonly ITenantService _tenantService;
+        public ScheduleRecallController(ITenantService tenantService)
         {
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _connectionString = tenantService.GetConnectionString();
         }
 
         [Authorize]

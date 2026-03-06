@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Dapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System.Data.SqlClient;
-using Dapper;
-using ServvistaWebAppAPI.Models;
 using ServvistaWebAppAPI.Classes;
+using ServvistaWebAppAPI.Models;
+using ServvistaWebAppAPI.Services;
+using System.Data.SqlClient;
 using System.Diagnostics.Eventing.Reader;
 
 namespace ServvistaWebAppAPI.Controllers
@@ -14,11 +15,11 @@ namespace ServvistaWebAppAPI.Controllers
     public class customerfeedbackController : ControllerBase
     {
         private readonly string _connectionString;
-        private readonly JwtTokenService _jwt;
-
+        private readonly JwtTokenService _jwt;        
+        private readonly IConfiguration _config;
         public customerfeedbackController(IConfiguration config)
-        {
-            _connectionString = config.GetConnectionString("DefaultConnection");
+        {            
+            _config = config;
         }
 
         private DateTime GetSriLankanTime()
@@ -46,6 +47,20 @@ namespace ServvistaWebAppAPI.Controllers
         {
             try
             {
+                string connectionString = "";
+                switch (model.companyId)
+                {
+                    case "001":
+                        connectionString = _config.GetConnectionString("DefaultConnection");
+                        break;
+                        case "002": 
+                        connectionString = _config.GetConnectionString("FintekConnection"); 
+                        break;
+                    default:
+                        connectionString = _config.GetConnectionString("DefaultConnection");
+                        break;
+                }
+
                 string customerReview = model.review;
                 string customerName = model.customerName;
                 string customerMobileNo = model.mobileNo;
@@ -58,7 +73,7 @@ namespace ServvistaWebAppAPI.Controllers
                 if (type == "service")
                 {
                     //Check if the row id exists in the service schedule table
-                    using (SqlConnection connection = new SqlConnection(_connectionString))
+                    using (SqlConnection connection = new SqlConnection(connectionString))
                     {
                         scheduleRowID = model.jobId;
 
@@ -66,7 +81,7 @@ namespace ServvistaWebAppAPI.Controllers
                         string techCode = "";
                         string techCodeQuery = @"
                         SELECT TECH_CODE 
-                        FROM TBL_SCEDULE_UPDATE
+                        FROM TBL_SERVICE_SCEDULE_UPDATE
                         WHERE T_ID = @jobid";
 
                         techCode = connection.QuerySingleOrDefault<string>(techCodeQuery, new { jobid = scheduleRowID });
@@ -110,9 +125,10 @@ namespace ServvistaWebAppAPI.Controllers
                         INSERT INTO TBL_SV_CUSTOMER_JOB_FEEDBACKS
                         (COM_ID, FB_DATE, MOBILE_NO, CUS_CODE, CUS_NAME, RATING, FULL_MSG, SERIAL_NO, MACHINE_REF_NO, JOB_ID, CUSTOMER_REVIEW, TYPE, VISIT_NO, TECH_CODE) 
                         VALUES 
-                        ('001', @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview, @type, @visitno, @techcode)";
+                        (@companyid, @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview, @type, @visitno, @techcode)";
                         var customerFeedInsertResult = connection.Execute(insertFeedbackQuery, new
                         {
+                            companyid = model.companyId,
                             feedbackDate = GetSriLankanTime(),
                             mobileNo = customerMobileNo,
                             customerName = customerName,
@@ -139,7 +155,7 @@ namespace ServvistaWebAppAPI.Controllers
                     bool IsJobExists = false;
 
 
-                    using (SqlConnection connection = new SqlConnection(_connectionString))
+                    using (SqlConnection connection = new SqlConnection(connectionString))
                     {
                         jobID = model.jobId;
                         connection.Open();
@@ -184,9 +200,10 @@ namespace ServvistaWebAppAPI.Controllers
                             INSERT INTO TBL_SV_CUSTOMER_JOB_FEEDBACKS
                             (COM_ID, FB_DATE, MOBILE_NO, CUS_CODE, CUS_NAME, RATING, FULL_MSG, SERIAL_NO, MACHINE_REF_NO, JOB_ID, CUSTOMER_REVIEW, TYPE, TECH_CODE) 
                             VALUES 
-                            ('001', @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview, @type, @techcode)";
+                            (@companyid, @feedbackDate, @mobileNo, 'N/A', @customerName, @rating, @fullmsg, @serialNo, @machineRefNo, @jobid, @customerreview, @type, @techcode)";
                             var customerFeedInsertResult = connection.Execute(insertFeedbackQuery, new
                             {
+                                companyid = model.companyId,
                                 feedbackDate = GetSriLankanTime(),
                                 mobileNo = customerMobileNo,
                                 customerName = customerName,
@@ -218,11 +235,24 @@ namespace ServvistaWebAppAPI.Controllers
 
         //GET : api/customerfeedback/getJobsWithSerial?serialNo=12345        
         [HttpGet("getJobsWithSerial")]
-        public IActionResult GetJobsWithSerial(string serialNo, int jobID) 
+        public IActionResult GetJobsWithSerial(string serialNo, int jobID, string companyID) 
         {
             try
             {
-                using (SqlConnection connection = new SqlConnection(_connectionString))
+                string connectionString = ""; 
+                switch (companyID)
+                {
+                    case "001":
+                        connectionString = _config.GetConnectionString("DefaultConnection");
+                        break;
+                    case "002": 
+                        connectionString = _config.GetConnectionString("FintekConnection");
+                        break;
+                    default:
+                        connectionString = _config.GetConnectionString("DefaultConnection"); 
+                        break;
+                }
+                using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     bool IsMachineExists = false;
 
@@ -288,11 +318,25 @@ namespace ServvistaWebAppAPI.Controllers
         }
 
         [HttpGet("getServiceByRowID")]
-        public IActionResult GetServiceByRowID(string serialNo, int rowId, int visitNo)
+        public IActionResult GetServiceByRowID(string serialNo, int rowId, int visitNo, string companyID)
         {
             try
-            {                
-                using (SqlConnection connection = new SqlConnection(_connectionString))
+            {
+                string connectionString = "";
+                switch (companyID)
+                {
+                    case "001":              
+                        connectionString = _config.GetConnectionString("DefaultConnection");
+                        break;
+                        case "002": 
+                            connectionString = _config.GetConnectionString("FintekConnection");
+                        break;
+                    default:
+                        connectionString = _config.GetConnectionString("DefaultConnection");
+                        break;
+                }
+
+                using (SqlConnection connection = new SqlConnection(connectionString))
                 {
                     bool IsMachineExists = false;
 

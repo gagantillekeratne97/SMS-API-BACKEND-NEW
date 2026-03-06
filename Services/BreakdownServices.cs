@@ -159,6 +159,9 @@ namespace ServvistaWebAppAPI.Services
         {
             try
             {
+                string companyID = _tenantService.GetCompanyName();
+                
+
                 using (SqlConnection connection = new SqlConnection(_connectionString))
                 {
                     connection.Open();
@@ -196,7 +199,8 @@ namespace ServvistaWebAppAPI.Services
                             SET 
                             JOB_STATUS = @jobstatus, 
                             STARTED_BY = @techcode, 
-                            STARTED_DATE = @starteddate
+                            STARTED_DATE = @starteddate, 
+                            START_WORK_NOTE = @note
                             WHERE DJ_ID = @jobid AND TECH_CODE = @techcode
                             ";
 
@@ -206,7 +210,8 @@ namespace ServvistaWebAppAPI.Services
                                 jobid = jobId,
                                 jobstatus = jobStatus,
                                 techcode = techCode,
-                                starteddate = startedDate
+                                starteddate = startedDate, 
+                                note = note     
                             });
 
                             int? recallID = null;
@@ -234,16 +239,56 @@ namespace ServvistaWebAppAPI.Services
                                     recallid = actualRecallId
                                 });
                             }
-                            string updateActivityQuery = @"
-                            UPDATE TBL_SCHEDULE_ACTIVITY 
-                            SET STARTED_BY = @techcode, STARTED_DATE = @starteddate
-                            WHERE ROW_ID = @jobid";
 
-                            connection.Execute(updateActivityQuery, new { 
-                                techcode = techCode, 
-                                startedDate = GetSriLankanTime(), 
-                                jobid = jobId
-                            });
+                            string checkForActivityQuery = @"
+                            SELECT CASE 
+                                WHEN EXISTS (
+                                    SELECT 1 
+                                    FROM TBL_SCHEDULE_ACTIVITY 
+                                    WHERE ROW_ID = @jobid                                     
+                                ) 
+                                THEN CAST(1 AS BIT) 
+                                ELSE CAST(0 AS BIT) 
+                            END";
+
+                            bool isActivityExists = connection.ExecuteScalar<bool>(checkForActivityQuery, new { jobid = jobId });
+
+                            if (!isActivityExists)
+                            {
+                                string insertActivityQuery = @"
+                                INSERT INTO TBL_SCHEDULE_ACTIVITY 
+                                (ROW_ID, STARTED_BY, STARTED_DATE, NOTE, SOLUTION_CATEGORY, TYPE, START_WORK_NOTE) 
+                                VALUES 
+                                (@rowid, @startedby, @starteddate, @reason, @solutioncategory, @type, @startworknote)";
+
+                                connection.Execute(insertActivityQuery, new {
+                                    rowid = jobId, 
+                                    startedby = techCode, 
+                                    starteddate = startedDate, 
+                                    reason = note, 
+                                    solutioncategory = solutionCategory, 
+                                    type = type, 
+                                    startworknote = note
+                                });
+                            }
+                            else
+                            {
+                                string updateActivityQuery = @"
+                                UPDATE TBL_SCHEDULE_ACTIVITY 
+                                SET STARTED_BY = @techcode, STARTED_DATE = @starteddate, 
+                                NOTE = @reason, SOLUTION_CATEGORY = @solutioncategory, START_WORK_NOTE = @startworknote       
+                                WHERE ROW_ID = @jobid";
+
+                                connection.Execute(updateActivityQuery, new
+                                {
+                                    techcode = techCode,
+                                    startedDate = GetSriLankanTime(),
+                                    jobid = jobId, 
+                                    reason = note, 
+                                    solutioncategory = solutionCategory,
+                                    startworknote = note
+                                });
+                            }                                
                         }
                         else if (jobStatus == "COMPLETE" || jobStatus == "COMPLETED")
                         {                            
@@ -300,8 +345,9 @@ namespace ServvistaWebAppAPI.Services
                             UPDATE TBL_SCHEDULE_ACTIVITY 
                             SET COMPLETED_BY = @completedby, 
                                 COMPLETED_DATE = @completeddate, 
-                                REASON = @reason, 
-                                SOLUTION_CATEGORY = @solution
+                                NOTE = @reason, 
+                                SOLUTION_CATEGORY = @solution, 
+                                COMPLETE_WORK_SOLUTION = @reason        
                             WHERE ROW_ID = @jobid";
 
                             await connection.ExecuteAsync(updateActivityQuery, new
@@ -333,7 +379,7 @@ namespace ServvistaWebAppAPI.Services
                                 }
                             }                            
 
-                            string feedbackLink = $"https://servvistagcp-001-site15.anytempurl.com/customer-feedback-machines/{customerFeedBackInfo.SERIAL_NO}/job/{jobId}";
+                            string feedbackLink = $"https://servvistagcp-001-site15.anytempurl.com/customer-feedback-machines/{customerFeedBackInfo.SERIAL_NO}/job/{jobId}?CompanyID={companyID}";
                             //Send a message to the customer sending the link for customer feedback
                             await SendSMS(customerMobileNumber, feedbackLink);
                         }

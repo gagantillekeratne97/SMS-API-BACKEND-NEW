@@ -14,5 +14,6 @@
         public string jobId { get; set; }                
         public int visitNo { get; set; } 
         public string type { get; set; }
+        public string companyId { get; set; }
     }
 }

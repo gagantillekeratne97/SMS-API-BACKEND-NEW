@@ -361,6 +361,8 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
         {
             try
             {
+                string companyID = _tenantService.GetCompanyName();                
+
                 using (SqlConnection connection = new SqlConnection(_connectionString))
                 {
                     connection.Open();
@@ -402,7 +404,7 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
                             T_OFFICER_CODE,
                             T_OFFICER_NAME,
                             VISITS_PER_YEAR
-                            FROM TBL_MACHINE_TRANSACTION WHERE COM_ID = '001' AND MACHINE_REF_CODE = @qnumber";
+                            FROM TBL_MACHINE_TRANSACTION WHERE MACHINE_REF_CODE = @qnumber";
                     var machineInfo = await connection.QuerySingleOrDefaultAsync<dynamic>(selectMachineQuery, new { qnumber = machineRefNo });
                     if (machineInfo != null)
                     {
@@ -421,20 +423,29 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
 
                     int latestVisits = await CheckForLatestVisits(jobID, serialNo, serviceVisitsCount, connection);
                     int availableVisit = await AvailableLatestVisit(jobID, serialNo, serviceVisitsCount, connection);
+                    bool isRecall = false;
 
                     if (jobStatus == "started")
                     {
                         //check for recall table 
+                        //string RecallIDQuery = @"
+                        //SELECT RECALL_ID FROM 
+                        //TBL_SERVICE_SCEDULE_UPDATE
+                        //WHERE T_ID = @rowid
+                        //";
+
                         string RecallIDQuery = @"
-                        SELECT RECALL_ID FROM 
-                        TBL_SERVICE_SCEDULE_UPDATE
-                        WHERE T_ID = @rowid
-                        ";
+                        SELECT RECALL_ID 
+                        FROM TBL_RECALL_VISIT
+                        WHERE ROW_ID = @jobid AND VISIT_NO = @visitno";
 
                         int? recallID = connection.QuerySingleOrDefault<int?>(RecallIDQuery, new
                         {
-                            rowid = jobID
+                            jobid = jobID, 
+                            visitno = visitNo
                         });
+
+                     
 
                         if (recallID.HasValue && recallID.Value > 0)
                         {
@@ -450,11 +461,13 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
                                 recallid = recallID
                             });
 
-                            jobType = "Service Recall";
+                            jobType = "Service visit Recall";
+                            isRecall = true;
                         }
                         else
                         {
                             jobType = "Normal Service";
+                            isRecall = false;
                         }
 
                         string checkForActivityQuery = @"
@@ -476,9 +489,9 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
                         {
                             string insertActivityQuery = @"
                                 INSERT INTO TBL_SCHEDULE_ACTIVITY    
-                                (ROW_ID, VISIT_NO, STARTED_BY, STARTED_DATE, REASON, SOLUTION_CATEGORY, TYPE, IS_RECALL, RECALL_ID)
+                                (ROW_ID, VISIT_NO, STARTED_BY, STARTED_DATE, NOTE, SOLUTION_CATEGORY, TYPE, IS_RECALL, RECALL_ID, START_WORK_NOTE)
                                 VALUES 
-                                (@rowid, @visitno, @startedby, @starteddate, @solution, @solutioncategory, @type, @isrecall, @recallid)";
+                                (@rowid, @visitno, @startedby, @starteddate, @solution, @solutioncategory, @type, @isrecall, @recallid, @startworknote)";
                             await connection.ExecuteAsync(insertActivityQuery, new
                             {
                                 rowid = jobID,
@@ -487,9 +500,10 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
                                 starteddate = GetSriLankanTime(),
                                 solution = solution,
                                 solutioncategory = solutionCategory,
-                                type = "Job recall",
-                                isrecall = true,
-                                recallid = recallID
+                                type = jobType,
+                                isrecall = isRecall,
+                                recallid = recallID, 
+                                startworknote = solution
                             });
                         }
 
@@ -519,13 +533,14 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
                         //check for recall table 
                         string RecallIDQuery = @"
                         SELECT RECALL_ID FROM 
-                        TBL_SERVICE_SCEDULE_UPDATE
-                        WHERE T_ID = @rowid
+                        TBL_RECALL_VISIT
+                        WHERE ROW_ID = @rowid AND VISIT_NO = @visitno
                         ";
 
                         int? recallID = connection.QuerySingleOrDefault<int?>(RecallIDQuery, new
                         {
-                            rowid = jobID
+                            rowid = jobID, 
+                            visitno = visitNo
                         });
 
                         if (recallID.HasValue && recallID.Value > 0)
@@ -541,9 +556,15 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
                                 status = jobStatus,
                                 recallid = recallID
                             });
+
+                            isRecall = true;
+                        }
+                        else
+                        {
+                            isRecall = false; 
                         }
 
-                        string checkForActivityQuery = @"
+                            string checkForActivityQuery = @"
                             SELECT CASE 
                                 WHEN EXISTS (
                                     SELECT 1 
@@ -562,17 +583,19 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
                         {
                             string updateActivityQuery = @"
                             UPDATE TBL_SCHEDULE_ACTIVITY SET COMPLETED_BY = @techcode, COMPLETED_DATE = @completedate,
-                            REASON = @note, SOLUTION_CATEGORY = @solution, TYPE = @jobrecall, IS_RECALL = '1'  
-                            WHERE ROW_ID = @jobid";
+                            NOTE = @note, SOLUTION_CATEGORY = @solution, IS_RECALL = @isrecall, COMPLETE_WORK_SOLUTION = @completeworksolution  
+                            WHERE ROW_ID = @jobid AND VISIT_NO = @visitno";
 
                             connection.Execute(updateActivityQuery, new
                             {
                                 techcode = techCode, 
                                 completedate = GetSriLankanTime(), 
                                 note = solution, 
-                                solution = solutionCategory, 
-                                jobrecall = jobType,
-                                jobid = jobID
+                                solution = solutionCategory,                                 
+                                isrecall = isRecall,
+                                jobid = jobID,
+                                visitno = visitNo, 
+                                completeworksolution = solution
                             });
                         }
 
@@ -580,8 +603,7 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
                             UPDATE TBL_SERVICE_SCEDULE_UPDATE
                             SET 
                             SV{visitNo} = @visitdate, 
-                            SV{visitNo}_STATUS = @jobstatus,
-                            SV{visitNo}_MR = @meterreading
+                            SV{visitNo}_STATUS = @jobstatus                            
                             WHERE TECH_CODE = @techcode
                             AND MACHINE_REF = @machinerefno 
                             AND T_ID = @rowid";
@@ -598,7 +620,7 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
 
                         //Send customer a SMS after completing the Service jobs 
                         visitNo = visitNo - 1;
-                        string feedbackLink = $"https://servvistagcp-001-site15.anytempurl.com/customer-feedback-machines/{serialNo}/service/{jobID}?visitNo={visitNo}";
+                        string feedbackLink = $"https://servvistagcp-001-site15.anytempurl.com/customer-feedback-machines/{serialNo}/service/{jobID}?visitNo={visitNo}?CompanyID={companyID}";
 
                         //Get customer mobile No 
                         string getCutomerMobileQuery = @"
@@ -989,18 +1011,18 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
         //    }
         //}        
 
-        private string CheckForExistingVisits(string serialNo, string visitColumn, SqlConnection connection)
+        private string CheckForExistingVisits(string serialNo, string visitColumn, SqlConnection connection, string companyid)
         {
             string query = $@"
             SELECT TOP 1 T_ID 
             FROM TBL_SERVICE_SCEDULE_UPDATE 
-            WHERE COM_ID = '001'
+            WHERE COM_ID = @companyid
             AND SERIAL_NO = @serialno
             AND IS_ACTIVE = '1'
             AND ({visitColumn}_SMS IS NULL OR {visitColumn} IS NULL)
             ";
 
-            var result = connection.QueryFirstOrDefault<string>(query, new { serialno = serialNo });
+            var result = connection.QueryFirstOrDefault<string>(query, new { serialno = serialNo, companyid = companyid});
             return result;
         }
 
