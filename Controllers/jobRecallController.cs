@@ -50,11 +50,13 @@ namespace ServvistaWebAppAPI.Controllers
                 using (SqlConnection connection = new SqlConnection(_connectionString))
                 {
                     connection.Open();
-                    string query = @"SELECT 
+                    string query = @"
+                    SELECT 
                         JOB_ID AS DJ_ID,
                         *
                     FROM TBL_RECALL_JOBS
                     WHERE TECH_CODE = @techcode
+                    AND JOB_STATUS <> 'COMPLETED'
                     ";
                     var result = connection.Query<BreakdownModel>(query, new { techcode = techCode });
                     return Ok(result);

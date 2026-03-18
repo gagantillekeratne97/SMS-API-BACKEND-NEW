@@ -54,7 +54,8 @@ namespace ServvistaWebAppAPI.Controllers
                         RECALL_DATE         AS recallDate, 
                         SERVICE_STATUS      AS serviceStatus
                     FROM TBL_RECALL_VISIT
-                    WHERE TECH_CODE = @techcode";
+                    WHERE TECH_CODE = @techcode 
+                    AND SERVICE_STATUS <> 'COMPLETED'";
 
                     var result = connection.Query<RecallResponseModel>(query, new { techcode = techCode.Trim() }).ToList();
                     return Ok(result);

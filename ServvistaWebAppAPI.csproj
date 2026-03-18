@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="dapper" Version="2.1.66" />
+    <PackageReference Include="dapper" Version="2.1.72" />
     <PackageReference Include="MailKit" Version="4.15.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.9" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />

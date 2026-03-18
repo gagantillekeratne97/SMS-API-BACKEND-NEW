@@ -362,7 +362,7 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
             try
             {
                 string companyID = _tenantService.GetCompanyName();                
-
+                 
                 using (SqlConnection connection = new SqlConnection(_connectionString))
                 {
                     connection.Open();
@@ -401,8 +401,8 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
                             M_LOC3, 
                             MACHINE_CODE, 
                             MACHINE_DESC, 
-                            T_OFFICER_CODE,
-                            T_OFFICER_NAME,
+                            TO_CODE,
+                            TO_NAME,
                             VISITS_PER_YEAR
                             FROM TBL_MACHINE_TRANSACTION WHERE MACHINE_REF_CODE = @qnumber";
                     var machineInfo = await connection.QuerySingleOrDefaultAsync<dynamic>(selectMachineQuery, new { qnumber = machineRefNo });
@@ -416,8 +416,8 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
                         customerAdd3 = machineInfo.CUS_ADD3;
                         machineId = machineInfo.MACHINE_CODE;
                         machineModel = machineInfo.MACHINE_DESC;
-                        techCode = machineInfo.T_OFFICER_CODE;
-                        techName = machineInfo.T_OFFICER_NAME;
+                        techCode = machineInfo.TO_CODE;
+                        techName = machineInfo.TO_NAME;
                         serviceVisitsCount = Convert.ToInt32(machineInfo.VISITS_PER_YEAR);
                     }
 
@@ -1068,7 +1068,7 @@ ORDER BY s.T_ID DESC, v.VisitNo;";
 
                 DateTime today = GetSriLankanTime();
                 DateTime startDate = new DateTime(today.Year, today.Month, 1);
-                DateTime endDate = startDate.AddMonths(1);
+                DateTime endDate = startDate.AddMonths(1).AddDays(-1);
                 var result = connection.Query<ServiceVisitMonthlyInfo>(query, new
                 {
                     techcode = techCode,

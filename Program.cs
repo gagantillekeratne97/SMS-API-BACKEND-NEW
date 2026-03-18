@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using ServvistaWebAppAPI.Classes;
+using ServvistaWebAppAPI.Repositories;
 using ServvistaWebAppAPI.Services;
 using System.Security.Claims;
 using System.Text;
@@ -54,6 +55,7 @@ builder.Services.AddScoped<IBreakdownServices, BreakdownServices>();
 builder.Services.AddScoped<IServiceSchedule, ServiceScheduleService>();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<ITenantService, TenantService>();
+builder.Services.AddScoped<IManagementRepository, ManagementServices>();
 
 // --------------------
 // Authentication (JWT + SignalR)
